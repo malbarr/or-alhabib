@@ -359,15 +359,22 @@ function formatHour(hhmm) {
   return `${h12}:${String(m).padStart(2,'0')} ${suffix}`;
 }
 
-// Convert OR cache slot { date, start, end } → display format
-function cacheSlotToDisplay(s) {
-  const d = new Date(s.date + 'T00:00:00');
-  return {
+// Expand OR cache slot into one display entry per window
+function cacheSlotToWindows(s) {
+  const d    = new Date(s.date + 'T00:00:00');
+  const base = {
     date:    String(d.getDate()),
     month:   AR_MONTHS[d.getMonth()],
     weekday: AR_WEEKDAYS[d.getDay()],
-    time:    formatHour(s.start) + (s.end ? ' – ' + formatHour(s.end) : '')
+    rawDate: s.date,
   };
+  const wins = (s.windows && s.windows.length > 0)
+    ? s.windows
+    : [{ start: s.start, end: s.end }];
+  return wins.map(w => ({
+    ...base,
+    time: formatHour(w.start) + (w.end ? ' – ' + formatHour(w.end) : ''),
+  }));
 }
 
 // Demo fallback (no API)
@@ -391,8 +398,8 @@ async function fetchOrSlots() {
     const today = new Date().toISOString().slice(0, 10);
     return (data.slots || [])
       .filter(s => s.date >= today)
-      .slice(0, 4)
-      .map(cacheSlotToDisplay);
+      .flatMap(cacheSlotToWindows)
+      .slice(0, 4);
   } catch(e) { return []; }
 }
 
