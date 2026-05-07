@@ -38,6 +38,8 @@ body { display: flex; flex-direction: column; overflow: hidden; }
 }
 .header h1 { font-size: 16px; font-weight: 700; }
 .refresh-btn { background: none; border: none; color: var(--accent); font-size: 20px; cursor: pointer; padding: 4px; line-height: 1; }
+.gcal-btn { background: none; border: 1px solid var(--accent); border-radius: 6px; color: var(--accent); font-size: 11px; cursor: pointer; padding: 3px 7px; line-height: 1.4; white-space: nowrap; }
+.gcal-btn:disabled { opacity: 0.5; cursor: default; }
 
 /* ── Date tabs ── */
 .tabs-wrap {
@@ -303,7 +305,11 @@ body { display: flex; flex-direction: column; overflow: hidden; }
 
 <div class="header">
   <h1>🏥 OR Schedule</h1>
-  <button class="refresh-btn" onclick="loadData()" title="Refresh">↻</button>
+  <div style="display:flex;align-items:center;gap:6px">
+    <span id="syncBadge" style="font-size:10px;color:var(--subtext);display:none"></span>
+    <button class="gcal-btn" id="gcalBtn" onclick="refreshGCal()" title="Sync from Google Calendar">🔄 Calendar</button>
+    <button class="refresh-btn" onclick="loadData()" title="Refresh schedule">↻</button>
+  </div>
 </div>
 
 <div class="tabs-wrap">
@@ -388,9 +394,22 @@ function timeToH(str) {
 }
 function isTimeAllowed(timeStr, dateISO) {
   const slot = getSlotForDate(dateISO);
-  if (!slot) return true; // no restriction if no slot defined
+  if (!slot) return true;
   const h = timeToH(timeStr);
+  if (slot.windows && slot.windows.length > 0) {
+    return slot.windows.some(w => h >= timeToH(w.start) && h < timeToH(w.end));
+  }
   return h >= timeToH(slot.start) && h < timeToH(slot.end);
+}
+function slotLabel(slot) {
+  if (!slot) return '';
+  if (slot.windows && slot.windows.length > 1) return slot.windows.map(w => `${w.start}–${w.end}`).join(', ');
+  return `${slot.start}–${slot.end}`;
+}
+function slotAllowedText(slot) {
+  if (!slot) return '';
+  if (slot.windows && slot.windows.length > 1) return slot.windows.map(w => `${w.start}–${w.end}`).join(' / ');
+  return `${slot.start} – ${slot.end}`;
 }
 
 // ── Parse time string/object safely ──────────────────────────────
@@ -402,6 +421,23 @@ function parseTime(t) {
   match = s.match(/T(\d{2}):(\d{2})/);
   if (match) return { h: parseInt(match[1]), m: parseInt(match[2]) };
   return { h: 7, m: 0 };
+}
+
+// ── Google Calendar sync ──────────────────────────────────────────
+async function refreshGCal() {
+  const btn = document.getElementById('gcalBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Syncing…';
+  try {
+    const res = await apiFetch('/api/gcal-refresh', { method: 'POST' });
+    const data = await res.json().catch(() => ({}));
+    btn.textContent = data.slots != null ? `✅ ${data.slots} days` : '✅ Done';
+    setTimeout(() => { btn.textContent = '🔄 Calendar'; btn.disabled = false; }, 3000);
+    await loadData();
+  } catch (e) {
+    btn.textContent = '❌ Failed';
+    setTimeout(() => { btn.textContent = '🔄 Calendar'; btn.disabled = false; }, 3000);
+  }
 }
 
 // ── Load data ─────────────────────────────────────────────────────
