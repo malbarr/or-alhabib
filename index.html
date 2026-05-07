@@ -252,6 +252,27 @@ body { display: flex; flex-direction: column; overflow: hidden; }
 .opt-topic     { background: var(--accent); color: #fff; }
 .opt-cancel    { background: var(--card); color: var(--text); }
 
+/* ── Filter bar ── */
+.filter-bar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 6px 12px;
+  display: flex; gap: 6px; overflow-x: auto; flex-shrink: 0;
+  scrollbar-width: none;
+}
+.filter-bar::-webkit-scrollbar { display: none; }
+.filter-btn {
+  background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+  color: var(--subtext); font-size: 12px; font-weight: 600; padding: 5px 12px;
+  cursor: pointer; white-space: nowrap; font-family: var(--font); transition: all 0.15s;
+}
+.filter-btn.active-all        { background: var(--accent);    border-color: var(--accent);    color: #fff; }
+.filter-btn.active-confirmed  { background: var(--confirmed); border-color: var(--confirmed); color: #000; }
+.filter-btn.active-wl         { background: var(--wl);        border-color: var(--wl);        color: #000; }
+.filter-btn.active-pd         { background: var(--pd);        border-color: var(--pd);        color: #000; }
+.filter-btn.active-cancelled  { background: var(--cancelled); border-color: var(--cancelled); color: #fff; }
+.filter-btn:active { opacity: 0.75; }
+
 /* ── Loading / empty ── */
 .loading { flex: 1; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 12px; color: var(--subtext); }
 .spinner { width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
@@ -276,6 +297,14 @@ body { display: flex; flex-direction: column; overflow: hidden; }
     <input class="search-input" id="searchInput" type="search" placeholder="Search by name or file number…" oninput="onSearch(this.value)">
     <button class="search-clear" id="searchClear" onclick="clearSearch()">✕</button>
   </div>
+</div>
+
+<div class="filter-bar" id="filterBar">
+  <button class="filter-btn active-all" id="fb-all"       onclick="setFilter('all')">All</button>
+  <button class="filter-btn"            id="fb-confirmed" onclick="setFilter('confirmed')">✅ Confirmed</button>
+  <button class="filter-btn"            id="fb-wl"        onclick="setFilter('wl')">⏳ WL</button>
+  <button class="filter-btn"            id="fb-pd"        onclick="setFilter('pd')">⚠️ PD</button>
+  <button class="filter-btn"            id="fb-cancelled" onclick="setFilter('cancelled')">❌ Cancelled</button>
 </div>
 
 <div class="schedule" id="schedule">
@@ -328,6 +357,7 @@ let allPatients  = [];
 let selectedDate = null;
 let selectedPatient = null;
 let dates = [];
+let activeFilter = 'all';
 
 const HOUR_PX = 80; // pixels per hour
 const MIN_H   = 7;
@@ -400,9 +430,21 @@ function approvalBadge(p) {
   return '';
 }
 
+// ── Filter bar ────────────────────────────────────────────────────
+function setFilter(f) {
+  activeFilter = f;
+  ['all','confirmed','wl','pd','cancelled'].forEach(k => {
+    const btn = document.getElementById('fb-' + k);
+    if (btn) btn.className = 'filter-btn' + (k === f ? ' active-' + k : '');
+  });
+  if (searchQuery) renderSearch(searchQuery);
+  else renderDay(selectedDate);
+}
+
 // ── Render day as calendar grid ───────────────────────────────────
 function renderDay(dateISO) {
-  const patients = allPatients.filter(p => p.dateISO === dateISO);
+  let patients = allPatients.filter(p => p.dateISO === dateISO);
+  if (activeFilter !== 'all') patients = patients.filter(p => p.statusClass === activeFilter);
 
   const maxPat = patients.reduce((mx, p) => {
     const { h } = parseTime(p.timeStart);
@@ -783,6 +825,7 @@ function clearSearch() {
 
 function renderSearch(q) {
   const matches = allPatients.filter(p => {
+    if (activeFilter !== 'all' && p.statusClass !== activeFilter) return false;
     const name = (p.fullName || p.name || '').toLowerCase();
     const file = String(p.fileNo || '').toLowerCase();
     const proc = (p.procedure || '').toLowerCase();
