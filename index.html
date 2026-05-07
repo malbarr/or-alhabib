@@ -154,6 +154,26 @@ body { display: flex; flex-direction: column; overflow: hidden; }
   white-space: nowrap;
   flex-shrink: 0;
 }
+.slot-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.slot-proc {
+  font-size: 11px;
+  color: var(--subtext);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.slot-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
 .slot-available {
   font-size: 13px;
   color: var(--subtext);
@@ -409,9 +429,14 @@ function renderDay(dateISO) {
       html += `<div class="slot ${p.statusClass}" onclick="openDialog(${p.rowNum})">
         <span class="slot-time">${timeStr}</span>
         <div class="slot-body">
-          <span class="slot-name">${esc(p.name)}</span>
-          <span class="slot-status-icon">${icon}</span>
-          <span class="slot-meta">${p.duration}${p.fileNo ? ' · #' + esc(p.fileNo) : ''}</span>
+          <div class="slot-info">
+            <span class="slot-name">${esc(p.name)}</span>
+            ${p.procedure ? `<span class="slot-proc">${esc(p.procedure)}</span>` : ''}
+          </div>
+          <div class="slot-right">
+            <span class="slot-status-icon">${icon}</span>
+            <span class="slot-meta">${p.duration}${p.fileNo ? ' · #' + esc(p.fileNo) : ''}</span>
+          </div>
         </div>
       </div>`;
       // skip spanned hours
@@ -421,7 +446,7 @@ function renderDay(dateISO) {
           const spanTime = `${String(hour).padStart(2,'0')}:00`;
           html += `<div class="slot empty">
             <span class="slot-time">${spanTime}</span>
-            <span class="slot-available">↕ ${esc(p.name)}</span>
+            <span class="slot-available">↕</span>
           </div>`;
         }
       }
