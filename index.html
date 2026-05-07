@@ -58,6 +58,47 @@ body { display: flex; flex-direction: column; overflow: hidden; }
 .tab.today.active { color: #fff; }
 .tab.drag-over { background: var(--accent); border-color: var(--accent); color: #fff; transform: scale(1.08); box-shadow: 0 0 0 3px rgba(10,132,255,0.4); }
 
+/* ── Search bar ── */
+.search-wrap {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 8px 12px;
+  flex-shrink: 0;
+}
+.search-inner {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--card); border-radius: 10px;
+  padding: 6px 10px;
+}
+.search-icon { font-size: 14px; color: var(--subtext); flex-shrink: 0; }
+.search-input {
+  flex: 1; background: none; border: none; outline: none;
+  color: var(--text); font-size: 14px; font-family: var(--font);
+}
+.search-input::placeholder { color: var(--subtext); }
+.search-clear {
+  background: none; border: none; color: var(--subtext); font-size: 16px;
+  cursor: pointer; padding: 0 2px; line-height: 1; display: none;
+}
+
+/* Search result row */
+.search-result-date { font-size: 11px; color: var(--subtext); font-weight: 600; padding: 10px 16px 4px; }
+.search-result-card {
+  margin: 4px 12px; border-radius: var(--radius); padding: 10px 12px;
+  background: var(--card); border-left: 4px solid transparent; cursor: pointer;
+  display: flex; flex-direction: column; gap: 3px;
+}
+.search-result-card.confirmed { border-left-color: var(--confirmed); }
+.search-result-card.wl        { border-left-color: var(--wl); }
+.search-result-card.pd        { border-left-color: var(--pd); }
+.search-result-card.cancelled { border-left-color: var(--cancelled); opacity: 0.6; }
+.search-result-card.tentative { border-left-color: var(--tentative); }
+.search-result-card:active    { opacity: 0.75; }
+.sr-row1 { display: flex; align-items: center; gap: 6px; }
+.sr-name  { font-size: 14px; font-weight: 700; flex: 1; }
+.sr-row2  { display: flex; gap: 8px; font-size: 11px; color: var(--subtext); }
+.sr-no-results { text-align: center; padding: 32px; color: var(--subtext); font-size: 14px; }
+
 /* ── Calendar scroll area ── */
 .schedule { flex: 1; overflow-y: auto; overflow-x: hidden; }
 
@@ -227,6 +268,14 @@ body { display: flex; flex-direction: column; overflow: hidden; }
 
 <div class="tabs-wrap">
   <div class="tabs" id="tabs"></div>
+</div>
+
+<div class="search-wrap" id="searchWrap">
+  <div class="search-inner">
+    <span class="search-icon">🔍</span>
+    <input class="search-input" id="searchInput" type="search" placeholder="Search by name or file number…" oninput="onSearch(this.value)">
+    <button class="search-clear" id="searchClear" onclick="clearSearch()">✕</button>
+  </div>
 </div>
 
 <div class="schedule" id="schedule">
@@ -713,6 +762,89 @@ async function cancelDay() {
 
 function esc(s) {
   return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/'/g,'&#39;');
+}
+
+// ── Search ────────────────────────────────────────────────────────
+let searchQuery = '';
+
+function onSearch(q) {
+  searchQuery = q.trim().toLowerCase();
+  document.getElementById('searchClear').style.display = searchQuery ? 'block' : 'none';
+  if (searchQuery) renderSearch(searchQuery);
+  else renderDay(selectedDate);
+}
+
+function clearSearch() {
+  searchQuery = '';
+  document.getElementById('searchInput').value = '';
+  document.getElementById('searchClear').style.display = 'none';
+  renderDay(selectedDate);
+}
+
+function renderSearch(q) {
+  const matches = allPatients.filter(p => {
+    const name = (p.fullName || p.name || '').toLowerCase();
+    const file = String(p.fileNo || '').toLowerCase();
+    const proc = (p.procedure || '').toLowerCase();
+    return name.includes(q) || file.includes(q) || proc.includes(q);
+  });
+
+  if (!matches.length) {
+    document.getElementById('schedule').innerHTML = `<div class="sr-no-results">No results for "<b>${esc(q)}</b>"</div>`;
+    document.getElementById('dayFooter').style.display = 'none';
+    document.getElementById('statsBar').style.display  = 'none';
+    return;
+  }
+
+  // Group by date
+  const byDate = {};
+  matches.forEach(p => {
+    if (!byDate[p.dateISO]) byDate[p.dateISO] = [];
+    byDate[p.dateISO].push(p);
+  });
+
+  let html = '';
+  Object.keys(byDate).sort().forEach(dateISO => {
+    const dt = new Date(dateISO + 'T00:00:00');
+    const label = `${EN_DAYS[dt.getDay()]}, ${dt.getDate()} ${EN_MONTHS[dt.getMonth()]}`;
+    html += `<div class="search-result-date">${label}</div>`;
+    byDate[dateISO].forEach(p => {
+      const { h: ph, m: pm } = parseTime(p.timeStart);
+      const timeStr = `${String(ph).padStart(2,'0')}:${String(pm).padStart(2,'0')}`;
+      html += `<div class="search-result-card ${p.statusClass}" onclick="jumpToPatient('${p.dateISO}', ${p.rowNum})">
+        <div class="sr-row1">
+          <span class="sr-name">${esc(p.fullName || p.name)}</span>
+          ${approvalBadge(p)}${statusBadge(p.statusClass)}
+        </div>
+        <div class="sr-row2">
+          <span>⏰ ${timeStr}</span>
+          ${p.fileNo    ? `<span>#${esc(p.fileNo)}</span>` : ''}
+          ${p.procedure ? `<span>${esc(p.procedure)}</span>` : ''}
+          ${p.phone     ? `<span>📞 ${esc(p.phone)}</span>` : ''}
+        </div>
+      </div>`;
+    });
+  });
+
+  document.getElementById('schedule').innerHTML = html;
+  document.getElementById('dayFooter').style.display = 'none';
+  document.getElementById('statsBar').innerHTML =
+    `<span>🔍 ${matches.length} result${matches.length !== 1 ? 's' : ''}</span>`;
+  document.getElementById('statsBar').style.display = 'block';
+}
+
+function jumpToPatient(dateISO, rowNum) {
+  clearSearch();
+  selectDate(dateISO);
+  // Brief highlight after render
+  setTimeout(() => {
+    const card = document.querySelector(`.patient-card[data-rownum="${rowNum}"]`);
+    if (card) {
+      card.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      card.style.boxShadow = '0 0 0 3px var(--accent)';
+      setTimeout(() => card.style.boxShadow = '', 1500);
+    }
+  }, 150);
 }
 
 // Apply Telegram theme
