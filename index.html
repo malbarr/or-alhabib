@@ -20,10 +20,8 @@
   --pd:         #ff9f0a;
   --cancelled:  #ff453a;
   --tentative:  #636366;
-  --approved:   #30d158;
-  --notapproved:#ff453a;
   --accent:     #0a84ff;
-  --radius:     12px;
+  --radius:     10px;
   --font:       -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
@@ -32,111 +30,85 @@ body { display: flex; flex-direction: column; overflow: hidden; }
 
 /* ── Header ── */
 .header {
-  padding: 14px 16px 10px;
+  padding: 12px 16px 8px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  display: flex; align-items: center; justify-content: space-between;
   flex-shrink: 0;
 }
-.header h1 { font-size: 17px; font-weight: 700; letter-spacing: -0.3px; }
-.header .refresh-btn {
-  background: none; border: none; color: var(--accent);
-  font-size: 20px; cursor: pointer; padding: 4px; line-height: 1;
-}
+.header h1 { font-size: 16px; font-weight: 700; }
+.refresh-btn { background: none; border: none; color: var(--accent); font-size: 20px; cursor: pointer; padding: 4px; line-height: 1; }
 
 /* ── Date tabs ── */
 .tabs-wrap {
   background: var(--surface);
   border-bottom: 1px solid var(--border);
-  overflow-x: auto;
-  flex-shrink: 0;
+  overflow-x: auto; flex-shrink: 0;
   scrollbar-width: none;
 }
 .tabs-wrap::-webkit-scrollbar { display: none; }
-.tabs {
-  display: flex;
-  padding: 8px 12px;
-  gap: 8px;
-  width: max-content;
-}
+.tabs { display: flex; padding: 8px 12px; gap: 8px; width: max-content; }
 .tab {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  color: var(--subtext);
-  font-size: 13px;
-  font-weight: 500;
-  padding: 6px 14px;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all 0.15s;
-  font-family: var(--font);
+  background: var(--card); border: 1px solid var(--border); border-radius: 20px;
+  color: var(--subtext); font-size: 13px; font-weight: 500; padding: 6px 14px;
+  cursor: pointer; white-space: nowrap; transition: all 0.15s; font-family: var(--font);
 }
 .tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 .tab.today  { border-color: var(--accent); color: var(--accent); }
 .tab.today.active { color: #fff; }
+.tab.drag-over { background: var(--accent); border-color: var(--accent); color: #fff; transform: scale(1.08); box-shadow: 0 0 0 3px rgba(10,132,255,0.4); }
 
-/* ── Schedule body ── */
-.schedule { flex: 1; overflow-y: auto; padding: 10px 12px 0; }
+/* ── Calendar scroll area ── */
+.schedule { flex: 1; overflow-y: auto; overflow-x: hidden; }
 
-/* ── Slot card ── */
-.slot {
-  background: var(--card);
-  border-radius: var(--radius);
-  padding: 11px 13px;
-  margin-bottom: 8px;
-  cursor: pointer;
-  transition: opacity 0.15s;
+/* ── Calendar grid ── */
+.cal-grid {
   position: relative;
+  padding-left: 44px;
+  padding-right: 8px;
+  padding-bottom: 20px;
+}
+
+/* Time lines */
+.time-row {
+  position: absolute; left: 0; right: 0; pointer-events: none;
+}
+.time-label {
+  position: absolute; left: 4px; font-size: 10px; color: var(--subtext);
+  transform: translateY(-50%); font-variant-numeric: tabular-nums;
+}
+.time-line {
+  position: absolute; left: 44px; right: 8px; border-top: 1px solid var(--border);
+}
+.time-line.half { border-top-color: rgba(58,58,60,0.4); border-top-style: dashed; }
+
+/* Patient cards (absolute positioned) */
+.patient-card {
+  position: absolute; left: 44px; right: 8px;
+  border-radius: var(--radius); overflow: hidden;
+  cursor: pointer;
   border-left: 4px solid transparent;
+  padding: 7px 8px 6px;
+  transition: opacity 0.15s, box-shadow 0.15s;
+  background: var(--card);
+  user-select: none; -webkit-user-select: none;
 }
-.slot:active { opacity: 0.75; }
-.slot.empty {
-  background: transparent;
-  border: 1.5px dashed var(--available, #3a3a3c);
-  cursor: default;
-  border-left-width: 1.5px;
-}
-.slot.empty:active { opacity: 1; }
+.patient-card.confirmed { border-left-color: var(--confirmed); }
+.patient-card.wl        { border-left-color: var(--wl); }
+.patient-card.pd        { border-left-color: var(--pd); }
+.patient-card.cancelled { border-left-color: var(--cancelled); opacity: 0.55; }
+.patient-card.tentative { border-left-color: var(--tentative); }
+.patient-card:active    { opacity: 0.75; }
+.patient-card.drag-src  { opacity: 0.25; pointer-events: none; }
 
-.slot.confirmed { border-left-color: var(--confirmed); }
-.slot.wl        { border-left-color: var(--wl); }
-.slot.pd        { border-left-color: var(--pd); }
-.slot.cancelled { border-left-color: var(--cancelled); opacity: 0.6; }
-.slot.tentative { border-left-color: var(--tentative); }
-
-/* Row 1: time + name + icons */
-.slot-row1 {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.slot-time {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--subtext);
-  min-width: 38px;
-  font-variant-numeric: tabular-nums;
-  flex-shrink: 0;
-}
-.slot-name {
-  font-size: 14px;
-  font-weight: 600;
-  flex: 1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.slot-badges { display: flex; gap: 4px; flex-shrink: 0; align-items: center; }
+/* Card rows */
+.slot-row1 { display: flex; align-items: center; gap: 6px; }
+.slot-time  { font-size: 11px; font-weight: 600; color: var(--subtext); min-width: 32px; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+.slot-name  { font-size: 13px; font-weight: 700; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.slot-badges { display: flex; gap: 3px; flex-shrink: 0; align-items: center; }
 .badge {
-  font-size: 10px;
-  font-weight: 700;
-  padding: 2px 6px;
-  border-radius: 6px;
-  white-space: nowrap;
-  line-height: 1.4;
+  font-size: 9px; font-weight: 700; padding: 2px 5px; border-radius: 5px;
+  white-space: nowrap; line-height: 1.4;
 }
 .badge-approved    { background: rgba(48,209,88,0.18);  color: var(--confirmed); }
 .badge-notapproved { background: rgba(255,69,58,0.18);  color: var(--cancelled); }
@@ -146,135 +118,102 @@ body { display: flex; flex-direction: column; overflow: hidden; }
 .badge-cancelled   { background: rgba(255,69,58,0.18);  color: var(--cancelled); }
 .badge-tentative   { background: rgba(99,99,102,0.25);  color: var(--subtext); }
 
-/* Row 2: procedure + duration */
-.slot-row2 {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 4px;
-  padding-left: 46px;
+.slot-row2 { display: flex; align-items: center; gap: 4px; margin-top: 2px; padding-left: 38px; }
+.slot-proc { font-size: 11px; color: var(--subtext); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.slot-dur  { font-size: 10px; color: var(--subtext); flex-shrink: 0; }
+
+.slot-row3 { display: flex; align-items: center; gap: 6px; margin-top: 1px; padding-left: 38px; }
+.slot-file  { font-size: 10px; color: var(--subtext); }
+.slot-phone { font-size: 10px; color: var(--subtext); }
+
+/* Topic quick button on card */
+.topic-btn {
+  position: absolute; bottom: 5px; right: 6px;
+  background: rgba(10,132,255,0.15); border: none; border-radius: 6px;
+  color: var(--accent); font-size: 12px; padding: 2px 6px;
+  cursor: pointer; line-height: 1.4;
 }
-.slot-proc {
-  font-size: 12px;
-  color: var(--subtext);
-  flex: 1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.slot-dur {
-  font-size: 11px;
-  color: var(--subtext);
-  flex-shrink: 0;
+.topic-btn:active { opacity: 0.7; }
+
+/* Drag ghost */
+.drag-ghost {
+  position: fixed; z-index: 9999; pointer-events: none;
+  border-radius: var(--radius); overflow: hidden;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.7);
+  opacity: 0.92; border-left: 4px solid var(--accent);
+  background: var(--card); padding: 7px 8px 6px;
+  transition: none;
 }
 
-/* Row 3: file + phone */
-.slot-row3 {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 2px;
-  padding-left: 46px;
+/* Drop time indicator */
+.drop-indicator {
+  position: absolute; left: 44px; right: 8px;
+  height: 3px; background: var(--accent); border-radius: 2px;
+  pointer-events: none; z-index: 10;
 }
-.slot-file  { font-size: 11px; color: var(--subtext); }
-.slot-phone { font-size: 11px; color: var(--subtext); }
-
-/* Empty slot */
-.slot-available { font-size: 13px; color: var(--subtext); padding-left: 46px; }
+.drop-indicator::before {
+  content: attr(data-time);
+  position: absolute; left: -40px; top: -8px;
+  font-size: 10px; color: var(--accent); font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
 
 /* ── Day footer ── */
 .day-footer {
-  padding: 10px 12px;
-  background: var(--bg);
+  padding: 8px 12px; background: var(--bg);
   border-top: 1px solid var(--border);
-  display: flex;
-  gap: 8px;
-  flex-shrink: 0;
+  display: flex; gap: 8px; flex-shrink: 0;
 }
 .day-footer button {
-  flex: 1; padding: 10px;
-  border-radius: var(--radius); border: none;
-  font-size: 14px; font-weight: 600;
-  cursor: pointer; font-family: var(--font);
-  transition: opacity 0.15s;
+  flex: 1; padding: 10px; border-radius: var(--radius); border: none;
+  font-size: 13px; font-weight: 600; cursor: pointer; font-family: var(--font);
 }
-.day-footer button:active { opacity: 0.75; }
 .btn-confirm-all { background: var(--confirmed); color: #000; }
 .btn-cancel-day  { background: var(--cancelled); color: #fff; }
 
 /* ── Stats bar ── */
 .stats-bar {
-  padding: 7px 16px;
-  background: var(--surface);
+  padding: 6px 16px; background: var(--surface);
   border-top: 1px solid var(--border);
-  font-size: 12px;
-  color: var(--subtext);
-  text-align: center;
-  flex-shrink: 0;
+  font-size: 11px; color: var(--subtext); text-align: center; flex-shrink: 0;
 }
 .stats-bar span { margin: 0 4px; }
 
-/* ── Dialog ── */
+/* ── Bottom sheet dialog ── */
 .dialog-overlay {
-  position: fixed; inset: 0;
-  background: rgba(0,0,0,0.7);
-  display: flex; align-items: flex-end;
-  z-index: 100;
-  opacity: 0; pointer-events: none;
-  transition: opacity 0.2s;
+  position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+  display: flex; align-items: flex-end; z-index: 100;
+  opacity: 0; pointer-events: none; transition: opacity 0.2s;
 }
 .dialog-overlay.visible { opacity: 1; pointer-events: auto; }
 .dialog {
-  background: var(--surface);
-  border-radius: 16px 16px 0 0;
-  padding: 20px 16px 32px;
-  width: 100%;
+  background: var(--surface); border-radius: 16px 16px 0 0;
+  padding: 20px 16px 32px; width: 100%;
   transform: translateY(100%);
   transition: transform 0.25s cubic-bezier(0.32,0,0,1);
 }
 .dialog-overlay.visible .dialog { transform: translateY(0); }
-
-.dialog-header {
-  text-align: center;
-  margin-bottom: 14px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--border);
-}
-.dialog-name {
-  font-size: 17px; font-weight: 700; margin-bottom: 6px;
-}
-.dialog-meta {
-  font-size: 13px; color: var(--subtext); margin-bottom: 6px;
-}
+.dialog-header { text-align: center; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+.dialog-name   { font-size: 17px; font-weight: 700; margin-bottom: 6px; }
+.dialog-meta   { font-size: 13px; color: var(--subtext); margin-bottom: 6px; }
 .dialog-badges { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; }
-
 .dialog-options { display: grid; gap: 8px; margin-bottom: 10px; }
 .dialog-opt {
-  padding: 14px; border-radius: var(--radius); border: none;
-  font-size: 15px; font-weight: 600; cursor: pointer;
-  font-family: var(--font); transition: opacity 0.15s;
+  padding: 13px; border-radius: var(--radius); border: none;
+  font-size: 15px; font-weight: 600; cursor: pointer; font-family: var(--font);
   display: flex; align-items: center; justify-content: center; gap: 8px;
 }
 .dialog-opt:active { opacity: 0.75; }
 .opt-confirmed { background: var(--confirmed); color: #000; }
-.opt-wl        { background: var(--wl);        color: #000; }
-.opt-pd        { background: var(--pd);        color: #000; }
+.opt-wl        { background: var(--wl); color: #000; }
+.opt-pd        { background: var(--pd); color: #000; }
 .opt-cancelled { background: var(--cancelled); color: #fff; }
-.opt-topic     { background: var(--accent);    color: #fff; }
-.opt-cancel    { background: var(--card);       color: var(--text); }
+.opt-topic     { background: var(--accent); color: #fff; }
+.opt-cancel    { background: var(--card); color: var(--text); }
 
 /* ── Loading / empty ── */
-.loading {
-  flex: 1; display: flex; align-items: center; justify-content: center;
-  flex-direction: column; gap: 12px; color: var(--subtext);
-}
-.spinner {
-  width: 32px; height: 32px;
-  border: 3px solid var(--border);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
+.loading { flex: 1; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 12px; color: var(--subtext); }
+.spinner { width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .no-data { text-align: center; padding: 32px; color: var(--subtext); font-size: 14px; }
 </style>
@@ -305,8 +244,8 @@ body { display: flex; flex-direction: column; overflow: hidden; }
 <div class="dialog-overlay" id="dialogOverlay" onclick="closeDialog(event)">
   <div class="dialog">
     <div class="dialog-header">
-      <div class="dialog-name"  id="dialogName"></div>
-      <div class="dialog-meta"  id="dialogMeta"></div>
+      <div class="dialog-name"   id="dialogName"></div>
+      <div class="dialog-meta"   id="dialogMeta"></div>
       <div class="dialog-badges" id="dialogBadges"></div>
     </div>
     <div class="dialog-options">
@@ -336,21 +275,31 @@ function apiFetch(path, opts = {}) {
 const EN_DAYS   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const EN_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-const STATUS_LABELS = {
-  confirmed: 'Confirmed', wl: 'WL', pd: 'PD', cancelled: 'Cancelled', tentative: 'Tentative'
-};
-
-let allPatients = [];
+let allPatients  = [];
 let selectedDate = null;
 let selectedPatient = null;
 let dates = [];
 
+const HOUR_PX = 80; // pixels per hour
+const MIN_H   = 7;
+
+// ── Parse time string/object safely ──────────────────────────────
+function parseTime(t) {
+  if (!t) return { h: 7, m: 0 };
+  const s = String(t);
+  let match = s.match(/(\d{1,2}):(\d{2})/);
+  if (match) return { h: parseInt(match[1]), m: parseInt(match[2]) };
+  match = s.match(/T(\d{2}):(\d{2})/);
+  if (match) return { h: parseInt(match[1]), m: parseInt(match[2]) };
+  return { h: 7, m: 0 };
+}
+
+// ── Load data ─────────────────────────────────────────────────────
 async function loadData() {
   document.getElementById('schedule').innerHTML =
     '<div class="loading"><div class="spinner"></div><span>Loading...</span></div>';
   document.getElementById('dayFooter').style.display = 'none';
-  document.getElementById('statsBar').style.display = 'none';
-
+  document.getElementById('statsBar').style.display  = 'none';
   try {
     const res = await apiFetch('/api/schedule');
     allPatients = await res.json();
@@ -362,7 +311,6 @@ async function loadData() {
       document.getElementById('tabs').innerHTML = '';
       return;
     }
-
     buildTabs();
     if (!selectedDate || !dates.includes(selectedDate)) selectedDate = dates[0];
     renderDay(selectedDate);
@@ -372,6 +320,7 @@ async function loadData() {
   }
 }
 
+// ── Tabs ──────────────────────────────────────────────────────────
 function buildTabs() {
   const tabs = document.getElementById('tabs');
   const todayISO = new Date().toISOString().slice(0, 10);
@@ -380,6 +329,7 @@ function buildTabs() {
     const label = `${EN_DAYS[dt.getDay()]} ${dt.getDate()} ${EN_MONTHS[dt.getMonth()]}`;
     const isToday = d === todayISO;
     return `<button class="tab${d === selectedDate ? ' active' : ''}${isToday ? ' today' : ''}"
+              data-date="${d}"
               onclick="selectDate('${d}')">${isToday ? '📌 ' : ''}${label}</button>`;
   }).join('');
 }
@@ -390,77 +340,94 @@ function selectDate(d) {
   renderDay(d);
 }
 
+// ── Badges ────────────────────────────────────────────────────────
 function statusBadge(sc) {
   const labels = { confirmed:'Confirmed', wl:'WL', pd:'PD', cancelled:'Cancelled', tentative:'Tentative' };
   return `<span class="badge badge-${sc}">${labels[sc] || sc}</span>`;
 }
-
 function approvalBadge(p) {
   if (p.approved)    return '<span class="badge badge-approved">Approved</span>';
   if (p.notApproved) return '<span class="badge badge-notapproved">Not Approved</span>';
   return '';
 }
 
+// ── Render day as calendar grid ───────────────────────────────────
 function renderDay(dateISO) {
   const patients = allPatients.filter(p => p.dateISO === dateISO);
-  const MIN_H = 7, MAX_H = 17;
 
-  const patByHour = {};
-  for (const p of patients) {
-    const [ph] = (p.timeStart || '07:00').split(':').map(Number);
-    patByHour[ph] = p;
-  }
+  const maxPat = patients.reduce((mx, p) => {
+    const { h } = parseTime(p.timeStart);
+    return Math.max(mx, h + (p.durationH || 1));
+  }, 17);
+  const MAX_H = Math.max(maxPat, 18);
+  const gridH = (MAX_H - MIN_H) * HOUR_PX + 20;
 
-  const allHours = new Set([...Object.keys(patByHour).map(Number)]);
-  const maxH = Math.max(MAX_H, ...(allHours.size ? [...allHours].map(n => n + 1) : [MAX_H])) + 1;
+  let html = `<div class="cal-grid" style="height:${gridH}px">`;
 
-  let html = '';
-  for (let hour = MIN_H; hour <= maxH; hour++) {
-    const p = patByHour[hour];
-    const timeStr = `${String(hour).padStart(2,'0')}:00`;
-
-    if (p) {
-      const apBadge = approvalBadge(p);
-      const stBadge = statusBadge(p.statusClass);
-      html += `<div class="slot ${p.statusClass}" onclick="openDialog(${p.rowNum})">
-        <div class="slot-row1">
-          <span class="slot-time">${timeStr}</span>
-          <span class="slot-name">${esc(p.fullName)}</span>
-          <div class="slot-badges">${apBadge}${stBadge}</div>
-        </div>`;
-      if (p.procedure) {
-        html += `<div class="slot-row2">
-          <span class="slot-proc">${esc(p.procedure)}</span>
-          <span class="slot-dur">⏱ ${p.duration}</span>
-        </div>`;
-      }
-      const filePart  = p.fileNo  ? `#${esc(p.fileNo)}` : '';
-      const phonePart = p.phone   ? `📞 ${esc(p.phone)}` : '';
-      if (filePart || phonePart) {
-        html += `<div class="slot-row3">
-          ${filePart  ? `<span class="slot-file">${filePart}</span>` : ''}
-          ${phonePart ? `<span class="slot-phone">${phonePart}</span>` : ''}
-        </div>`;
-      }
-      html += `</div>`;
-
-      for (let s = 1; s < p.durationH; s++) {
-        hour++;
-        html += `<div class="slot empty">
-          <span class="slot-time">${String(hour).padStart(2,'0')}:00</span>
-          <span class="slot-available">↕ (cont.)</span>
-        </div>`;
-      }
-    } else {
-      html += `<div class="slot empty">
-        <span class="slot-time">${timeStr}</span>
-        <span class="slot-available">Available</span>
-      </div>`;
+  // Time grid lines
+  for (let h = MIN_H; h <= MAX_H; h++) {
+    const y = (h - MIN_H) * HOUR_PX;
+    html += `<div class="time-row" style="top:${y}px">
+      <span class="time-label">${String(h).padStart(2,'0')}:00</span>
+      <div class="time-line"></div>
+    </div>`;
+    if (h < MAX_H) {
+      const yh = y + HOUR_PX / 2;
+      html += `<div class="time-row" style="top:${yh}px"><div class="time-line half"></div></div>`;
     }
   }
 
-  document.getElementById('schedule').innerHTML = html || '<div class="no-data">No patients</div>';
+  // Patient cards
+  for (const p of patients) {
+    const { h: ph, m: pm } = parseTime(p.timeStart);
+    const topY   = (ph + pm / 60 - MIN_H) * HOUR_PX;
+    const cardH  = Math.max((p.durationH || 1) * HOUR_PX - 4, 42);
+    const apBadge = approvalBadge(p);
+    const stBadge = statusBadge(p.statusClass);
+    const timeStr = `${String(ph).padStart(2,'0')}:${String(pm).padStart(2,'0')}`;
 
+    html += `<div class="patient-card ${p.statusClass}"
+                  data-rownum="${p.rowNum}"
+                  style="top:${topY}px; height:${cardH}px;"
+                  onclick="openDialog(${p.rowNum})">
+      <div class="slot-row1">
+        <span class="slot-time">${timeStr}</span>
+        <span class="slot-name">${esc(p.fullName)}</span>
+        <div class="slot-badges">${apBadge}${stBadge}</div>
+      </div>`;
+
+    if (cardH >= 52 && p.procedure) {
+      html += `<div class="slot-row2">
+        <span class="slot-proc">${esc(p.procedure)}</span>
+        <span class="slot-dur">⏱ ${p.duration || '1h'}</span>
+      </div>`;
+    }
+    if (cardH >= 72) {
+      const fp = p.fileNo  ? `#${esc(p.fileNo)}` : '';
+      const ph2 = p.phone   ? `📞 ${esc(p.phone)}` : '';
+      if (fp || ph2) {
+        html += `<div class="slot-row3">
+          ${fp  ? `<span class="slot-file">${fp}</span>` : ''}
+          ${ph2 ? `<span class="slot-phone">${ph2}</span>` : ''}
+        </div>`;
+      }
+    }
+    if (p.telegramLink) {
+      html += `<button class="topic-btn" onclick="event.stopPropagation();openTopicLink('${esc(p.telegramLink)}')">🔗</button>`;
+    }
+    html += `</div>`;
+  }
+
+  html += '</div>';
+  document.getElementById('schedule').innerHTML = html;
+
+  // Setup drag for each card
+  patients.forEach(p => {
+    const card = document.querySelector(`.patient-card[data-rownum="${p.rowNum}"]`);
+    if (card) setupDrag(card, p);
+  });
+
+  // Stats
   const total     = patients.length;
   const confirmed = patients.filter(p => p.statusClass === 'confirmed').length;
   const wl        = patients.filter(p => p.statusClass === 'wl').length;
@@ -470,37 +437,232 @@ function renderDay(dateISO) {
 
   const statsBar = document.getElementById('statsBar');
   statsBar.style.display = 'block';
-  statsBar.innerHTML = `<span>📊 ${total} patient${total !== 1 ? 's' : ''}</span>` +
-    (confirmed ? `<span>✅ ${confirmed} confirmed</span>` : '') +
+  statsBar.innerHTML =
+    `<span>📊 ${total} patient${total !== 1 ? 's' : ''}</span>` +
+    (confirmed ? `<span>✅ ${confirmed}</span>` : '') +
     (wl        ? `<span>⏳ ${wl} WL</span>` : '') +
     (pd        ? `<span>⚠️ ${pd} PD</span>` : '') +
     (tentative ? `<span>🔵 ${tentative} tentative</span>` : '') +
-    (cancelled ? `<span>❌ ${cancelled} cancelled</span>` : '');
+    (cancelled ? `<span>❌ ${cancelled}</span>` : '');
 
-  const footer = document.getElementById('dayFooter');
-  footer.style.display = patients.length > 0 ? 'flex' : 'none';
+  document.getElementById('dayFooter').style.display = patients.length > 0 ? 'flex' : 'none';
 }
 
+// ── Drag & Drop ───────────────────────────────────────────────────
+let dragState      = null;
+let longPressTimer = null;
+let ghostEl        = null;
+let dropLine       = null;
+
+function setupDrag(card, patient) {
+  card.addEventListener('touchstart',  e => onTouchStart(e, card, patient), { passive: true });
+  card.addEventListener('touchmove',   onTouchMove,   { passive: false });
+  card.addEventListener('touchend',    onTouchEnd);
+  card.addEventListener('touchcancel', cancelDrag);
+}
+
+function onTouchStart(e, card, patient) {
+  const touch = e.touches[0];
+  const startX = touch.clientX, startY = touch.clientY;
+
+  longPressTimer = setTimeout(() => {
+    tg?.HapticFeedback?.impactOccurred('medium');
+    beginDrag(card, patient, touch);
+  }, 480);
+
+  const onEarlyMove = (ev) => {
+    const t = ev.touches[0];
+    if (Math.abs(t.clientX - startX) > 8 || Math.abs(t.clientY - startY) > 8) {
+      clearTimeout(longPressTimer);
+      card.removeEventListener('touchmove', onEarlyMove);
+    }
+  };
+  card.addEventListener('touchmove', onEarlyMove, { passive: true });
+}
+
+function beginDrag(card, patient, touch) {
+  const rect = card.getBoundingClientRect();
+  dragState = {
+    patient,
+    card,
+    offsetY: touch.clientY - rect.top,
+    offsetX: touch.clientX - rect.left,
+    cardW:   rect.width,
+    cardH:   rect.height,
+  };
+
+  // Ghost
+  ghostEl = document.createElement('div');
+  ghostEl.className = 'drag-ghost patient-card ' + patient.statusClass;
+  ghostEl.style.width  = rect.width  + 'px';
+  ghostEl.style.height = rect.height + 'px';
+  ghostEl.style.left   = rect.left + 'px';
+  ghostEl.style.top    = rect.top  + 'px';
+  ghostEl.innerHTML = card.innerHTML;
+  document.body.appendChild(ghostEl);
+
+  card.classList.add('drag-src');
+
+  // Drop line
+  dropLine = document.createElement('div');
+  dropLine.className = 'drop-indicator';
+  dropLine.style.display = 'none';
+  const grid = document.querySelector('.cal-grid');
+  if (grid) grid.appendChild(dropLine);
+
+  document.addEventListener('touchmove', preventScroll, { passive: false });
+}
+
+function preventScroll(e) { if (dragState) e.preventDefault(); }
+
+function onTouchMove(e) {
+  if (!dragState) return;
+  clearTimeout(longPressTimer);
+  const touch = e.touches[0];
+
+  // Move ghost
+  ghostEl.style.left = (touch.clientX - dragState.offsetX) + 'px';
+  ghostEl.style.top  = (touch.clientY - dragState.offsetY) + 'px';
+
+  // Check if over tabs
+  const tabsRect = document.querySelector('.tabs-wrap').getBoundingClientRect();
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('drag-over'));
+
+  if (touch.clientY <= tabsRect.bottom) {
+    // Over tabs area
+    const tabs = document.querySelectorAll('.tab');
+    const overTab = [...tabs].find(t => {
+      const r = t.getBoundingClientRect();
+      return touch.clientX >= r.left && touch.clientX <= r.right;
+    });
+    if (overTab) overTab.classList.add('drag-over');
+    if (dropLine) dropLine.style.display = 'none';
+  } else {
+    // Over calendar
+    if (dropLine) {
+      const grid = document.querySelector('.cal-grid');
+      if (grid) {
+        const gr = grid.getBoundingClientRect();
+        const relY = touch.clientY - gr.top;
+        const rawH = MIN_H + relY / HOUR_PX;
+        const snap = Math.round(rawH * 2) / 2;
+        const snapH = Math.floor(snap);
+        const snapM = (snap % 1) * 60;
+        const snapY = (snap - MIN_H) * HOUR_PX;
+        const timeStr = `${String(snapH).padStart(2,'0')}:${String(snapM).padStart(2,'0')}`;
+        dropLine.style.display = 'block';
+        dropLine.style.top     = snapY + 'px';
+        dropLine.dataset.time  = timeStr;
+      }
+    }
+  }
+}
+
+function onTouchEnd(e) {
+  clearTimeout(longPressTimer);
+  if (!dragState) return;
+  const touch = e.changedTouches[0];
+
+  // Cleanup
+  ghostEl?.remove(); ghostEl = null;
+  dropLine?.remove(); dropLine = null;
+  dragState.card.classList.remove('drag-src');
+  document.removeEventListener('touchmove', preventScroll);
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('drag-over'));
+
+  const { patient } = dragState;
+  dragState = null;
+
+  // Was over tabs?
+  const tabsRect = document.querySelector('.tabs-wrap').getBoundingClientRect();
+  if (touch.clientY <= tabsRect.bottom) {
+    const tabs = document.querySelectorAll('.tab');
+    const overTab = [...tabs].find(t => {
+      const r = t.getBoundingClientRect();
+      return touch.clientX >= r.left && touch.clientX <= r.right;
+    });
+    if (overTab) {
+      const newDate = overTab.dataset.date;
+      if (newDate && newDate !== selectedDate) {
+        const dt = new Date(newDate + 'T00:00:00');
+        const label = `${EN_DAYS[dt.getDay()]} ${dt.getDate()} ${EN_MONTHS[dt.getMonth()]}`;
+        if (confirm(`Move ${patient.fullName}\nto ${label}?`)) {
+          movePatientDate(patient, newDate);
+        }
+      }
+    }
+    return;
+  }
+
+  // Over calendar — snap time
+  const grid = document.querySelector('.cal-grid');
+  if (grid) {
+    const gr = grid.getBoundingClientRect();
+    const relY = touch.clientY - gr.top;
+    const rawH = MIN_H + relY / HOUR_PX;
+    const snap = Math.round(rawH * 2) / 2;
+    const snapH = Math.max(MIN_H, Math.floor(snap));
+    const snapM = (snap % 1) * 60;
+    const newTime = `${String(snapH).padStart(2,'0')}:${String(snapM).padStart(2,'0')}`;
+    const { h: origH, m: origM } = parseTime(patient.timeStart);
+    const origTime = `${String(origH).padStart(2,'0')}:${String(origM).padStart(2,'0')}`;
+    if (newTime !== origTime) {
+      if (confirm(`Reschedule ${patient.fullName}\n${origTime} → ${newTime}?`)) {
+        reschedulePatient(patient, newTime);
+      }
+    }
+  }
+}
+
+function cancelDrag() {
+  clearTimeout(longPressTimer);
+  if (!dragState) return;
+  ghostEl?.remove(); ghostEl = null;
+  dropLine?.remove(); dropLine = null;
+  dragState.card.classList.remove('drag-src');
+  document.removeEventListener('touchmove', preventScroll);
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('drag-over'));
+  dragState = null;
+}
+
+async function reschedulePatient(patient, newTime) {
+  try {
+    const res  = await apiFetch('/api/reschedule', { method: 'POST', body: JSON.stringify({ rowNum: patient.rowNum, newTime }) });
+    const data = await res.json();
+    if (data.ok) { await loadData(); tg?.HapticFeedback?.notificationOccurred('success'); }
+    else alert('Error: ' + (data.error || 'Reschedule failed'));
+  } catch (e) { alert('Connection error: ' + e.message); }
+}
+
+async function movePatientDate(patient, newDate) {
+  try {
+    const res  = await apiFetch('/api/move-date', { method: 'POST', body: JSON.stringify({ rowNum: patient.rowNum, newDate }) });
+    const data = await res.json();
+    if (data.ok) {
+      await loadData();
+      selectDate(newDate);
+      tg?.HapticFeedback?.notificationOccurred('success');
+    } else alert('Error: ' + (data.error || 'Move failed'));
+  } catch (e) { alert('Connection error: ' + e.message); }
+}
+
+// ── Dialog ────────────────────────────────────────────────────────
 function openDialog(rowNum) {
   const p = allPatients.find(x => x.rowNum === rowNum);
-  if (!p) return;
+  if (!p || dragState) return;
   selectedPatient = p;
 
   document.getElementById('dialogName').textContent = p.fullName || p.name;
 
-  const metaParts = [];
-  if (p.fileNo)    metaParts.push(`File #${p.fileNo}`);
-  if (p.phone)     metaParts.push(`📞 ${p.phone}`);
-  if (p.procedure) metaParts.push(p.procedure);
-  if (p.duration)  metaParts.push(`⏱ ${p.duration}`);
-  document.getElementById('dialogMeta').textContent = metaParts.join('  ·  ');
+  const meta = [];
+  if (p.fileNo)    meta.push(`File #${p.fileNo}`);
+  if (p.phone)     meta.push(`📞 ${p.phone}`);
+  if (p.procedure) meta.push(p.procedure);
+  if (p.duration)  meta.push(`⏱ ${p.duration}`);
+  document.getElementById('dialogMeta').textContent = meta.join('  ·  ');
 
-  const badgeHtml = approvalBadge(p) + statusBadge(p.statusClass);
-  document.getElementById('dialogBadges').innerHTML = badgeHtml;
-
-  const topicWrap = document.getElementById('dialogTopicWrap');
-  topicWrap.style.display = p.telegramLink ? 'block' : 'none';
-
+  document.getElementById('dialogBadges').innerHTML = approvalBadge(p) + statusBadge(p.statusClass);
+  document.getElementById('dialogTopicWrap').style.display = p.telegramLink ? 'block' : 'none';
   document.getElementById('dialogOverlay').classList.add('visible');
 }
 
@@ -513,66 +675,47 @@ function closeDialog(e) {
 
 function openTopic() {
   if (!selectedPatient?.telegramLink) return;
-  if (tg?.openTelegramLink) {
-    tg.openTelegramLink(selectedPatient.telegramLink);
-  } else {
-    window.open(selectedPatient.telegramLink, '_blank');
-  }
+  openTopicLink(selectedPatient.telegramLink);
+}
+
+function openTopicLink(link) {
+  if (tg?.openTelegramLink) tg.openTelegramLink(link);
+  else window.open(link, '_blank');
 }
 
 async function setStatus(status) {
   if (!selectedPatient) return;
   document.getElementById('dialogOverlay').classList.remove('visible');
-  const p = selectedPatient;
-  selectedPatient = null;
-
+  const p = selectedPatient; selectedPatient = null;
   try {
-    const res = await apiFetch('/api/update', {
-      method: 'POST',
-      body: JSON.stringify({ rowNum: p.rowNum, status }),
-    });
+    const res  = await apiFetch('/api/update', { method: 'POST', body: JSON.stringify({ rowNum: p.rowNum, status }) });
     const data = await res.json();
-    if (data.ok) {
-      await loadData();
-      if (tg) tg.HapticFeedback?.notificationOccurred('success');
-    } else {
-      alert('Error: ' + (data.error || 'Update failed'));
-    }
-  } catch (e) {
-    alert('Connection error: ' + e.message);
-  }
+    if (data.ok) { await loadData(); tg?.HapticFeedback?.notificationOccurred('success'); }
+    else alert('Error: ' + (data.error || 'Update failed'));
+  } catch (e) { alert('Connection error: ' + e.message); }
 }
 
 async function confirmAll() {
-  const patients = allPatients.filter(p => p.dateISO === selectedDate && p.statusClass !== 'confirmed');
-  if (patients.length === 0) { alert('All patients are already confirmed'); return; }
-  for (const p of patients) {
-    await apiFetch('/api/update', {
-      method: 'POST',
-      body: JSON.stringify({ rowNum: p.rowNum, status: 'Confirmed' }),
-    });
-  }
+  const pts = allPatients.filter(p => p.dateISO === selectedDate && p.statusClass !== 'confirmed');
+  if (!pts.length) { alert('All patients already confirmed'); return; }
+  for (const p of pts) await apiFetch('/api/update', { method: 'POST', body: JSON.stringify({ rowNum: p.rowNum, status: 'Confirmed' }) });
   await loadData();
-  if (tg) tg.HapticFeedback?.notificationOccurred('success');
+  tg?.HapticFeedback?.notificationOccurred('success');
 }
 
 async function cancelDay() {
-  const patients = allPatients.filter(p => p.dateISO === selectedDate && p.statusClass !== 'cancelled');
-  if (patients.length === 0) { alert('No patients to cancel'); return; }
+  const pts = allPatients.filter(p => p.dateISO === selectedDate && p.statusClass !== 'cancelled');
+  if (!pts.length) { alert('No patients to cancel'); return; }
   if (!confirm('Cancel all patients for this day?')) return;
-  for (const p of patients) {
-    await apiFetch('/api/update', {
-      method: 'POST',
-      body: JSON.stringify({ rowNum: p.rowNum, status: 'Cancelled' }),
-    });
-  }
+  for (const p of pts) await apiFetch('/api/update', { method: 'POST', body: JSON.stringify({ rowNum: p.rowNum, status: 'Cancelled' }) });
   await loadData();
 }
 
 function esc(s) {
-  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/'/g,'&#39;');
 }
 
+// Apply Telegram theme
 if (tg?.themeParams) {
   const tp = tg.themeParams;
   if (tp.bg_color)           document.documentElement.style.setProperty('--bg',      tp.bg_color);
