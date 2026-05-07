@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>متابعة موعد عمليتك</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+    background: #f0f4f8;
+    min-height: 100vh;
+    padding-bottom: 100px;
+  }
+
+  /* Header */
+  .header {
+    background: linear-gradient(135deg, #1a5276, #2980b9);
+    color: white;
+    padding: 20px 16px 28px;
+    position: relative;
+  }
+  .header .hospital-logo {
+    font-size: 13px;
+    opacity: 0.8;
+    margin-bottom: 8px;
+  }
+  .header h1 { font-size: 22px; font-weight: 700; }
+  .header .patient-name { font-size: 16px; opacity: 0.9; margin-top: 4px; }
+  .header .procedure-badge {
+    display: inline-block;
+    background: rgba(255,255,255,0.2);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 13px;
+    margin-top: 8px;
+  }
+
+  /* Progress Track */
+  .progress-card {
+    background: white;
+    margin: -18px 16px 0;
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  }
+  .progress-label {
+    font-size: 12px;
+    color: #888;
+    margin-bottom: 12px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+  .steps-track {
+    display: flex;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+  .step-dot {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 1;
+  }
+  .step-dot.done { background: #27ae60; color: white; }
+  .step-dot.active {
+    background: #e67e22;
+    color: white;
+    box-shadow: 0 0 0 4px rgba(230,126,34,0.2);
+    animation: pulse 2s infinite;
+  }
+  .step-dot.pending { background: #ecf0f1; color: #bbb; }
+  .step-line {
+    flex: 1;
+    height: 3px;
+    margin: 0 4px;
+  }
+  .step-line.done { background: #27ae60; }
+  .step-line.pending { background: #ecf0f1; }
+
+  .step-names {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: #888;
+  }
+  .step-names span { width: 32px; text-align: center; }
+
+  .current-status {
+    background: #fff8f0;
+    border: 1.5px solid #f39c12;
+    border-radius: 10px;
+    padding: 12px;
+    margin-top: 16px;
+  }
+  .current-status .status-icon { font-size: 20px; }
+  .current-status .status-text {
+    font-size: 15px;
+    font-weight: 700;
+    color: #d35400;
+    margin-bottom: 4px;
+  }
+  .current-status .status-sub { font-size: 12px; color: #888; }
+
+  /* Insurance Section */
+  .card {
+    background: white;
+    margin: 12px 16px 0;
+    border-radius: 14px;
+    padding: 18px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+  }
+  .card-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: #888;
+    letter-spacing: 0.5px;
+    margin-bottom: 14px;
+    text-transform: uppercase;
+  }
+
+  .insurance-status {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .ins-icon {
+    width: 44px; height: 44px;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    flex-shrink: 0;
+  }
+  .ins-icon.approved { background: #eafaf1; }
+  .ins-icon.pending { background: #fef9e7; }
+  .ins-icon.rejected { background: #fdf2f8; }
+  .ins-text .ins-label { font-size: 15px; font-weight: 700; color: #2c3e50; }
+  .ins-text .ins-sub { font-size: 12px; color: #95a5a6; margin-top: 2px; }
+
+  /* Slots Section */
+  .slots-list { display: flex; flex-direction: column; gap: 10px; }
+  .slot-item {
+    border: 1.5px solid #e8ecf0;
+    border-radius: 12px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .slot-item:active { transform: scale(0.98); }
+  .slot-item.preferred {
+    border-color: #2980b9;
+    background: #eaf4fb;
+  }
+  .slot-left { display: flex; align-items: center; gap: 12px; }
+  .slot-day-icon {
+    width: 40px; height: 40px;
+    background: #eaf4fb;
+    border-radius: 10px;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+  }
+  .slot-day-icon .month { font-size: 9px; color: #2980b9; font-weight: 700; }
+  .slot-day-icon .day { font-size: 18px; color: #1a5276; font-weight: 800; line-height: 1; }
+  .slot-info .slot-weekday { font-size: 14px; font-weight: 700; color: #2c3e50; }
+  .slot-info .slot-time { font-size: 12px; color: #95a5a6; margin-top: 2px; }
+  .slot-btn {
+    padding: 8px 16px;
+    border-radius: 20px;
+    border: none;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .slot-btn.select-btn { background: #2980b9; color: white; }
+  .slot-btn.selected-btn { background: #27ae60; color: white; }
+
+  /* CTA — Call Coordinator */
+  .cta-card {
+    margin: 12px 16px 0;
+    background: linear-gradient(135deg, #27ae60, #1e8449);
+    border-radius: 14px;
+    padding: 18px;
+    color: white;
+    box-shadow: 0 4px 15px rgba(39,174,96,0.3);
+  }
+  .cta-card .cta-title { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+  .cta-card .cta-sub { font-size: 12px; opacity: 0.85; margin-bottom: 14px; }
+  .call-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: white;
+    color: #1e8449;
+    border: none;
+    border-radius: 30px;
+    padding: 14px;
+    font-size: 16px;
+    font-weight: 800;
+    width: 100%;
+    cursor: pointer;
+    text-decoration: none;
+    transition: transform 0.1s;
+  }
+  .call-btn:active { transform: scale(0.97); }
+
+  /* Reminder Banner */
+  .reminder-banner {
+    margin: 12px 16px 0;
+    background: #fff3cd;
+    border: 1.5px solid #ffc107;
+    border-radius: 12px;
+    padding: 14px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .reminder-banner .rem-icon { font-size: 20px; }
+  .reminder-banner .rem-text { font-size: 13px; color: #856404; line-height: 1.5; }
+  .reminder-banner .rem-text strong { display: block; font-size: 14px; margin-bottom: 2px; }
+
+  /* Footer */
+  .footer {
+    text-align: center;
+    padding: 24px;
+    font-size: 12px;
+    color: #aaa;
+  }
+
+  /* Pulse animation */
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(230,126,34,0.4); }
+    70% { box-shadow: 0 0 0 8px rgba(230,126,34,0); }
+    100% { box-shadow: 0 0 0 0 rgba(230,126,34,0); }
+  }
+
+  /* Sent confirmation */
+  .toast {
+    position: fixed;
+    bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: #2c3e50;
+    color: white;
+    padding: 12px 24px;
+    border-radius: 30px;
+    font-size: 14px;
+    opacity: 0;
+    transition: opacity 0.3s;
+    z-index: 999;
+    white-space: nowrap;
+  }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="hospital-logo">🏥 مستشفى الحبيب — قسم العمليات</div>
+  <h1 id="greeting">مرحباً محمد 👋</h1>
+  <div class="patient-name" id="sub-name">متابعة ملف عمليتك</div>
+  <div class="procedure-badge" id="procedure-badge">استئصال اللوز</div>
+</div>
+
+<!-- Progress Track -->
+<div class="progress-card">
+  <div class="progress-label">مراحل عمليتك</div>
+  <div class="steps-track">
+    <div class="step-dot done" id="s1">✓</div>
+    <div class="step-line done"></div>
+    <div class="step-dot active" id="s2">2</div>
+    <div class="step-line pending"></div>
+    <div class="step-dot pending" id="s3">3</div>
+    <div class="step-line pending"></div>
+    <div class="step-dot pending" id="s4">4</div>
+  </div>
+  <div class="step-names">
+    <span>القرار</span>
+    <span>التأمين</span>
+    <span>الموعد</span>
+    <span>العملية</span>
+  </div>
+
+  <div class="current-status">
+    <div style="display:flex; align-items:center; gap:10px">
+      <span class="status-icon" id="status-icon">⏳</span>
+      <div>
+        <div class="status-text" id="status-text">بانتظار موافقة التأمين</div>
+        <div class="status-sub" id="status-sub">عادةً تستغرق 2-3 أيام عمل</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Insurance -->
+<div class="card">
+  <div class="card-title">حالة التأمين</div>
+  <div class="insurance-status">
+    <div class="ins-icon pending" id="ins-icon">⏳</div>
+    <div class="ins-text">
+      <div class="ins-label" id="ins-label">قيد المراجعة</div>
+      <div class="ins-sub" id="ins-sub">تم إرسال الطلب — ننتظر رد شركة التأمين</div>
+    </div>
+  </div>
+</div>
+
+<!-- Reminder -->
+<div class="reminder-banner" id="reminder-banner">
+  <span class="rem-icon">📞</span>
+  <div class="rem-text">
+    <strong>موعدك لم يُحجز بعد</strong>
+    الأوقات المتاحة تُحجز بسرعة — تواصل مع المنسقة الآن لضمان أقرب موعد يناسبك
+  </div>
+</div>
+
+<!-- Available Slots -->
+<div class="card" id="slots-card">
+  <div class="card-title">مواعيد متاحة قريباً</div>
+  <div class="slots-list" id="slots-list">
+    <!-- populated by JS -->
+  </div>
+</div>
+
+<!-- CTA -->
+<div class="cta-card">
+  <div class="cta-title">تواصل مع المنسقة الآن</div>
+  <div class="cta-sub" id="cta-sub">سجّل يومك المفضّل وهي ستؤكد موعدك فوراً</div>
+  <a class="call-btn" id="call-btn" href="tel:0555000000">
+    <span>📞</span>
+    <span id="coord-name">اتصل بالمنسقة</span>
+  </a>
+</div>
+
+<div class="footer">
+  🔒 بياناتك محمية · د. محمد البار · مستشفى الحبيب
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── Data Layer ──────────────────────────────────────────────
+const _params = new URLSearchParams(location.search);
+const token   = _params.get('t') || 'demo';
+const API_BASE = (_params.get('api') || '').replace(/\/$/, '');
+
+const AR_MONTHS   = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+const AR_WEEKDAYS = ['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+
+function formatHour(hhmm) {
+  const [h, m] = hhmm.split(':').map(Number);
+  const suffix = h < 12 ? 'ص' : 'م';
+  const h12    = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return `${h12}:${String(m).padStart(2,'0')} ${suffix}`;
+}
+
+// Convert OR cache slot { date, start, end } → display format
+function cacheSlotToDisplay(s) {
+  const d = new Date(s.date + 'T00:00:00');
+  return {
+    date:    String(d.getDate()),
+    month:   AR_MONTHS[d.getMonth()],
+    weekday: AR_WEEKDAYS[d.getDay()],
+    time:    formatHour(s.start) + (s.end ? ' – ' + formatHour(s.end) : '')
+  };
+}
+
+// Demo fallback (no API)
+const DEMO_PATIENT = {
+  name: "محمد البار",
+  procedure: "استئصال اللوز",
+  step: 2,
+  insurance: "pending",
+  insurance_company: "بوبا",
+  coordinator: { name: "المنسقة هنادي", phone: "0555000000" },
+  slots: [],
+  preferred_slot: null
+};
+
+async function fetchOrSlots() {
+  if (!API_BASE) return [];
+  try {
+    const res = await fetch(API_BASE + '/api/or-slots?' + Date.now());
+    if (!res.ok) return [];
+    const data = await res.json();
+    const today = new Date().toISOString().slice(0, 10);
+    return (data.slots || [])
+      .filter(s => s.date >= today)
+      .slice(0, 4)
+      .map(cacheSlotToDisplay);
+  } catch(e) { return []; }
+}
+
+async function loadPatient() {
+  let p = null;
+  if (API_BASE) {
+    try {
+      const res = await fetch(API_BASE + '/api/patient?t=' + encodeURIComponent(token) + '&' + Date.now());
+      if (res.ok) p = await res.json();
+    } catch(e) {}
+  }
+  if (!p) {
+    try {
+      const res = await fetch('or_patients.json?' + Date.now());
+      if (res.ok) { const all = await res.json(); p = all[token] || null; }
+    } catch(e) {}
+  }
+  if (!p && token === 'demo') p = { ...DEMO_PATIENT };
+  if (!p) return null;
+
+  // Always use live OR slots if available (overrides any hardcoded slots)
+  const liveSlots = await fetchOrSlots();
+  if (liveSlots.length > 0) p.slots = liveSlots;
+
+  return p;
+}
+
+// ── Render ──────────────────────────────────────────────────
+function render(p) {
+  if (!p) {
+    document.body.innerHTML = `<div style="padding:40px;text-align:center;color:#888">
+      <div style="font-size:48px">🔍</div>
+      <div style="font-size:18px;margin-top:12px">لم يُعثر على ملفك</div>
+      <div style="font-size:14px;margin-top:8px">تحقق من الرابط أو تواصل مع المنسقة</div>
+    </div>`;
+    return;
+  }
+
+  // Header
+  document.getElementById('greeting').textContent = `مرحباً ${p.name} 👋`;
+  document.getElementById('procedure-badge').textContent = p.procedure;
+
+  // Steps
+  const stepDots = [null,'s1','s2','s3','s4'];
+  const stepLines = document.querySelectorAll('.step-line');
+  for (let i = 1; i <= 4; i++) {
+    const el = document.getElementById(stepDots[i]);
+    if (i < p.step) { el.className = 'step-dot done'; el.textContent = '✓'; }
+    else if (i === p.step) { el.className = 'step-dot active'; el.textContent = i; }
+    else { el.className = 'step-dot pending'; el.textContent = i; }
+  }
+  stepLines.forEach((l, i) => {
+    l.className = 'step-line ' + (i < p.step - 1 ? 'done' : 'pending');
+  });
+
+  // Status text per step
+  const statusMap = {
+    1: { icon:'✅', text:'تم اتخاذ قرار العملية', sub:'جاري إرسال الطلب للتأمين' },
+    2: { icon:'⏳', text:'بانتظار موافقة التأمين', sub:`تم إرسال الطلب إلى ${p.insurance_company} — ننتظر الرد` },
+    3: { icon:'📅', text:'جاري تحديد الموعد', sub:'تواصل مع المنسقة لتأكيد اليوم المناسب' },
+    4: { icon:'🎉', text:'الموعد مؤكد', sub:'يسعدنا خدمتك' }
+  };
+  const s = statusMap[p.step];
+  document.getElementById('status-icon').textContent = s.icon;
+  document.getElementById('status-text').textContent = s.text;
+  document.getElementById('status-sub').textContent = s.sub;
+
+  // Insurance
+  const insMap = {
+    pending:  { icon:'⏳', cls:'pending', label:'قيد المراجعة',   sub:`تم الإرسال إلى ${p.insurance_company}` },
+    approved: { icon:'✅', cls:'approved', label:'موافقة مبدئية', sub:'تم الحصول على الموافقة بنجاح' },
+    rejected: { icon:'❌', cls:'rejected', label:'مرفوضة',        sub:'يرجى التواصل مع المنسقة لمعرفة البديل' },
+  };
+  const ins = insMap[p.insurance] || insMap.pending;
+  document.getElementById('ins-icon').className = `ins-icon ${ins.cls}`;
+  document.getElementById('ins-icon').textContent = ins.icon;
+  document.getElementById('ins-label').textContent = ins.label;
+  document.getElementById('ins-sub').textContent = ins.sub;
+
+  // Reminder banner
+  if (p.step >= 3 && p.preferred_slot) {
+    document.getElementById('reminder-banner').style.display = 'none';
+  }
+
+  // Slots
+  const list = document.getElementById('slots-list');
+  list.innerHTML = '';
+
+  if (!p.slots || p.slots.length === 0) {
+    document.getElementById('slots-card').style.display = 'none';
+  } else {
+    p.slots.forEach((slot, i) => {
+      const isPreferred = p.preferred_slot === i;
+      const div = document.createElement('div');
+      div.className = 'slot-item' + (isPreferred ? ' preferred' : '');
+      div.innerHTML = `
+        <div class="slot-left">
+          <div class="slot-day-icon">
+            <span class="month">${slot.month}</span>
+            <span class="day">${slot.date}</span>
+          </div>
+          <div class="slot-info">
+            <div class="slot-weekday">${slot.weekday}</div>
+            <div class="slot-time">⏰ ${slot.time}</div>
+          </div>
+        </div>
+        <button class="slot-btn ${isPreferred ? 'selected-btn' : 'select-btn'}" data-idx="${i}">
+          ${isPreferred ? '✓ اخترته' : 'أفضّله'}
+        </button>
+      `;
+      list.appendChild(div);
+    });
+
+    // Click handler
+    list.querySelectorAll('.slot-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const idx = parseInt(btn.dataset.idx);
+        const slot = p.slots[idx];
+        p.preferred_slot = idx;
+
+        // Build WhatsApp message to coordinator
+        const msg = encodeURIComponent(
+          `مرحباً، أنا ${p.name}\nأرغب في حجز موعد عملية ${p.procedure}\nيوم: ${slot.weekday} ${slot.date} ${slot.month}\nوقت: ${slot.time}`
+        );
+        const waUrl = `https://wa.me/966${p.coordinator.phone.replace(/^0/,'')}?text=${msg}`;
+
+        showToast(`✅ سيتم إرسال رغبتك للمنسقة`);
+        setTimeout(() => { window.open(waUrl, '_blank'); }, 800);
+
+        render(p); // re-render to update selection
+      });
+    });
+  }
+
+  // CTA
+  document.getElementById('cta-sub').textContent =
+    p.preferred_slot !== null
+      ? `اخترت ${p.slots[p.preferred_slot].weekday} — أكّد مع المنسقة`
+      : 'سجّل يومك المفضّل وهي ستؤكد موعدك فوراً';
+
+  document.getElementById('coord-name').textContent = `اتصل بـ ${p.coordinator.name}`;
+  document.getElementById('call-btn').href = `tel:${p.coordinator.phone}`;
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ── Init ─────────────────────────────────────────────────────
+loadPatient().then(render);
+</script>
+</body>
+</html>
