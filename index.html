@@ -52,11 +52,35 @@ body { display: flex; flex-direction: column; overflow: hidden; }
   background: var(--card); border: 1px solid var(--border); border-radius: 20px;
   color: var(--subtext); font-size: 13px; font-weight: 500; padding: 6px 14px;
   cursor: pointer; white-space: nowrap; transition: all 0.15s; font-family: var(--font);
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
 }
+.tab-slot { font-size: 10px; opacity: 0.7; font-weight: 400; line-height: 1; }
 .tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 .tab.today  { border-color: var(--accent); color: var(--accent); }
 .tab.today.active { color: #fff; }
 .tab.drag-over { background: var(--accent); border-color: var(--accent); color: #fff; transform: scale(1.08); box-shadow: 0 0 0 3px rgba(10,132,255,0.4); }
+
+/* ── OR slot blocked zone on grid ── */
+.slot-blocked {
+  position: absolute; left: 48px; right: 0;
+  background: repeating-linear-gradient(45deg, rgba(255,69,58,0.08), rgba(255,69,58,0.08) 4px, transparent 4px, transparent 12px);
+  border-left: 3px solid rgba(255,69,58,0.3);
+  pointer-events: none; z-index: 0;
+}
+.slot-allowed {
+  position: absolute; left: 48px; right: 0;
+  background: rgba(48,209,88,0.04);
+  border-left: 3px solid rgba(48,209,88,0.3);
+  pointer-events: none; z-index: 0;
+}
+.drop-indicator.blocked { border-color: #ff453a; }
+.drop-indicator.blocked::after { background: #ff453a; }
+.drop-blocked-msg {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  background: #ff453a; color: #fff; padding: 4px 10px;
+  border-radius: 8px; font-size: 12px; font-weight: 600;
+  pointer-events: none; z-index: 20; white-space: nowrap;
+}
 
 /* ── Search bar ── */
 .search-wrap {
@@ -350,9 +374,24 @@ let allPatients  = [];
 let selectedDate = null;
 let selectedPatient = null;
 let dates = [];
+let orSlots = []; // [{date, start, end}] — permitted OR windows
 
 const HOUR_PX = 80; // pixels per hour
 const MIN_H   = 7;
+
+function getSlotForDate(dateISO) {
+  return orSlots.find(s => s.date === dateISO) || null;
+}
+function timeToH(str) {
+  const [h, m] = (str || '07:00').split(':').map(Number);
+  return h + m / 60;
+}
+function isTimeAllowed(timeStr, dateISO) {
+  const slot = getSlotForDate(dateISO);
+  if (!slot) return true; // no restriction if no slot defined
+  const h = timeToH(timeStr);
+  return h >= timeToH(slot.start) && h < timeToH(slot.end);
+}
 
 // ── Parse time string/object safely ──────────────────────────────
 function parseTime(t) {
@@ -372,9 +411,15 @@ async function loadData() {
   document.getElementById('dayFooter').style.display = 'none';
   document.getElementById('statsBar').style.display  = 'none';
   try {
-    const res = await apiFetch('/api/schedule');
-    allPatients = await res.json();
+    const [schedRes, slotsRes] = await Promise.all([
+      apiFetch('/api/schedule'),
+      apiFetch('/api/or-slots').catch(() => null),
+    ]);
+    allPatients = await schedRes.json();
     if (!Array.isArray(allPatients)) throw new Error('Invalid response');
+    if (slotsRes && slotsRes.ok) {
+      try { orSlots = await slotsRes.json(); } catch(e) { orSlots = []; }
+    }
 
     dates = [...new Set(allPatients.map(p => p.dateISO))].sort();
     if (dates.length === 0) {
@@ -399,9 +444,11 @@ function buildTabs() {
     const dt = new Date(d + 'T00:00:00');
     const label = `${EN_DAYS[dt.getDay()]} ${dt.getDate()} ${EN_MONTHS[dt.getMonth()]}`;
     const isToday = d === todayISO;
+    const slot = getSlotForDate(d);
+    const slotLabel = slot ? ` ${slot.start}–${slot.end}` : '';
     return `<button class="tab${d === selectedDate ? ' active' : ''}${isToday ? ' today' : ''}"
               data-date="${d}"
-              onclick="selectDate('${d}')">${isToday ? '📌 ' : ''}${label}</button>`;
+              onclick="selectDate('${d}')">${isToday ? '📌 ' : ''}${label}<span class="tab-slot">${slotLabel}</span></button>`;
   }).join('');
 }
 
@@ -430,6 +477,7 @@ function approvalToggleBtn(p) {
 // ── Render day as calendar grid ───────────────────────────────────
 function renderDay(dateISO) {
   const patients = allPatients.filter(p => p.dateISO === dateISO);
+  const slot = getSlotForDate(dateISO);
 
   const maxPat = patients.reduce((mx, p) => {
     const { h } = parseTime(p.timeStart);
@@ -439,6 +487,27 @@ function renderDay(dateISO) {
   const gridH = (MAX_H - MIN_H) * HOUR_PX + 20;
 
   let html = `<div class="cal-grid" style="height:${gridH}px">`;
+
+  // Allowed / blocked zone shading
+  if (slot) {
+    const startH = timeToH(slot.start);
+    const endH   = timeToH(slot.end);
+    // blocked before
+    if (startH > MIN_H) {
+      const blockH = (startH - MIN_H) * HOUR_PX;
+      html += `<div class="slot-blocked" style="top:0;height:${blockH}px"></div>`;
+    }
+    // allowed window
+    const allowedTop = (startH - MIN_H) * HOUR_PX;
+    const allowedH   = (endH - startH) * HOUR_PX;
+    html += `<div class="slot-allowed" style="top:${allowedTop}px;height:${allowedH}px"></div>`;
+    // blocked after
+    if (endH < MAX_H) {
+      const afterTop = (endH - MIN_H) * HOUR_PX;
+      const afterH   = (MAX_H - endH) * HOUR_PX + 20;
+      html += `<div class="slot-blocked" style="top:${afterTop}px;height:${afterH}px"></div>`;
+    }
+  }
 
   // Time grid lines
   for (let h = MIN_H; h <= MAX_H; h++) {
@@ -626,9 +695,12 @@ function onTouchMove(e) {
         const snapM = (snap % 1) * 60;
         const snapY = (snap - MIN_H) * HOUR_PX;
         const timeStr = `${String(snapH).padStart(2,'0')}:${String(snapM).padStart(2,'0')}`;
+        const isAllowed = isTimeAllowed(timeStr, selectedDate);
         dropLine.style.display = 'block';
         dropLine.style.top     = snapY + 'px';
         dropLine.dataset.time  = timeStr;
+        dropLine.dataset.blocked = isAllowed ? '' : '1';
+        if (isAllowed) { dropLine.classList.remove('blocked'); } else { dropLine.classList.add('blocked'); }
       }
     }
   }
@@ -662,7 +734,13 @@ function onTouchEnd(e) {
       if (newDate && newDate !== selectedDate) {
         const dt = new Date(newDate + 'T00:00:00');
         const label = `${EN_DAYS[dt.getDay()]} ${dt.getDate()} ${EN_MONTHS[dt.getMonth()]}`;
-        if (confirm(`Move ${patient.fullName}\nto ${label}?`)) {
+        const newSlot = getSlotForDate(newDate);
+        const { h: ph, m: pm } = parseTime(patient.timeStart);
+        const curTimeStr = `${String(ph).padStart(2,'0')}:${String(pm).padStart(2,'0')}`;
+        const timeOK = isTimeAllowed(curTimeStr, newDate);
+        const slotInfo = newSlot ? `\nOR window: ${newSlot.start}–${newSlot.end}` : '';
+        const warnLine = (!timeOK && newSlot) ? `\n⚠️ Time ${curTimeStr} is outside OR window` : '';
+        if (confirm(`Move ${patient.fullName}\nto ${label}?${slotInfo}${warnLine}`)) {
           movePatientDate(patient, newDate);
         }
       }
@@ -683,6 +761,12 @@ function onTouchEnd(e) {
     const { h: origH, m: origM } = parseTime(patient.timeStart);
     const origTime = `${String(origH).padStart(2,'0')}:${String(origM).padStart(2,'0')}`;
     if (newTime !== origTime) {
+      const slot = getSlotForDate(selectedDate);
+      if (slot && !isTimeAllowed(newTime, selectedDate)) {
+        tg?.HapticFeedback?.notificationOccurred('error');
+        alert(`⛔ Outside OR hours\nAllowed: ${slot.start} – ${slot.end}`);
+        return;
+      }
       if (confirm(`Reschedule ${patient.fullName}\n${origTime} → ${newTime}?`)) {
         reschedulePatient(patient, newTime);
       }
