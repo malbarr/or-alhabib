@@ -411,18 +411,14 @@ async function loadPatient() {
       if (res.ok) p = await res.json();
     } catch(e) {}
   }
-  if (!p) {
-    try {
-      const res = await fetch('or_patients.json?' + Date.now());
-      if (res.ok) { const all = await res.json(); p = all[token] || null; }
-    } catch(e) {}
-  }
   if (!p && token === 'demo') p = { ...DEMO_PATIENT };
   if (!p) return null;
 
-  // Always use live OR slots if available (overrides any hardcoded slots)
-  const liveSlots = await fetchOrSlots();
-  if (liveSlots.length > 0) p.slots = liveSlots;
+  // Prefer server-provided slots; only fetch separately if page has its own API_BASE
+  if (API_BASE && p.slots && p.slots.length === 0) {
+    const liveSlots = await fetchOrSlots();
+    if (liveSlots.length > 0) p.slots = liveSlots;
+  }
 
   return p;
 }
@@ -430,11 +426,22 @@ async function loadPatient() {
 // ── Render ──────────────────────────────────────────────────
 function render(p) {
   if (!p) {
-    document.body.innerHTML = `<div style="padding:40px;text-align:center;color:#888">
-      <div style="font-size:48px">🔍</div>
-      <div style="font-size:18px;margin-top:12px">لم يُعثر على ملفك</div>
-      <div style="font-size:14px;margin-top:8px">تحقق من الرابط أو تواصل مع المنسقة</div>
-    </div>`;
+    document.body.innerHTML = `
+      <div style="background:linear-gradient(135deg,#1a5276,#2980b9);color:white;padding:28px 16px 36px">
+        <div style="font-size:13px;opacity:.8;margin-bottom:8px">🏥 مستشفى الحبيب — قسم العمليات</div>
+        <div style="font-size:22px;font-weight:700">تتبّع حالتك</div>
+      </div>
+      <div style="background:white;margin:-18px 16px 0;border-radius:16px;padding:28px 20px;box-shadow:0 4px 20px rgba(0,0,0,.1);text-align:center">
+        <div style="font-size:48px;margin-bottom:12px">📞</div>
+        <div style="font-size:18px;font-weight:700;color:#2c3e50;margin-bottom:8px">تواصل مع المنسقة</div>
+        <div style="font-size:14px;color:#888;margin-bottom:24px;line-height:1.6">
+          للاستفسار عن موعد عمليتك أو حالة التأمين<br>تواصل مع المنسقة مباشرة
+        </div>
+        <a href="tel:0555000000" style="display:flex;align-items:center;justify-content:center;gap:8px;background:linear-gradient(135deg,#27ae60,#1e8449);color:white;border-radius:30px;padding:16px;font-size:16px;font-weight:800;text-decoration:none">
+          <span>📞</span><span>اتصل بالمنسقة</span>
+        </a>
+      </div>
+      <div style="text-align:center;padding:24px;font-size:12px;color:#aaa">🔒 بياناتك محمية · د. محمد البار · مستشفى الحبيب</div>`;
     return;
   }
 
