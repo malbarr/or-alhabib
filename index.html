@@ -1,29 +1,30 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="en" dir="ltr">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>جدول OR</title>
+<title>OR Schedule</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg:        #0f0f0f;
-  --surface:   #1c1c1e;
-  --card:      #2c2c2e;
-  --border:    #3a3a3c;
-  --text:      #ffffff;
-  --subtext:   #8e8e93;
-  --confirmed: #30d158;
-  --wl:        #ffd60a;
-  --pd:        #ff9f0a;
-  --cancelled: #ff453a;
-  --available: #3a3a3c;
-  --accent:    #0a84ff;
-  --radius:    10px;
-  --font:      -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --hour-h:    72px;
+  --bg:         #0f0f0f;
+  --surface:    #1c1c1e;
+  --card:       #2c2c2e;
+  --border:     #3a3a3c;
+  --text:       #ffffff;
+  --subtext:    #8e8e93;
+  --confirmed:  #30d158;
+  --wl:         #ffd60a;
+  --pd:         #ff9f0a;
+  --cancelled:  #ff453a;
+  --tentative:  #636366;
+  --approved:   #30d158;
+  --notapproved:#ff453a;
+  --accent:     #0a84ff;
+  --radius:     12px;
+  --font:       -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--font); }
@@ -34,7 +35,9 @@ body { display: flex; flex-direction: column; overflow: hidden; }
   padding: 14px 16px 10px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
-  display: flex; align-items: center; justify-content: space-between;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   flex-shrink: 0;
 }
 .header h1 { font-size: 17px; font-weight: 700; letter-spacing: -0.3px; }
@@ -47,177 +50,153 @@ body { display: flex; flex-direction: column; overflow: hidden; }
 .tabs-wrap {
   background: var(--surface);
   border-bottom: 1px solid var(--border);
-  overflow-x: auto; flex-shrink: 0; scrollbar-width: none;
+  overflow-x: auto;
+  flex-shrink: 0;
+  scrollbar-width: none;
 }
 .tabs-wrap::-webkit-scrollbar { display: none; }
-.tabs { display: flex; padding: 8px 12px; gap: 8px; width: max-content; }
+.tabs {
+  display: flex;
+  padding: 8px 12px;
+  gap: 8px;
+  width: max-content;
+}
 .tab {
-  background: var(--card); border: 1px solid var(--border);
-  border-radius: 20px; color: var(--subtext);
-  font-size: 13px; font-weight: 500; padding: 6px 14px;
-  cursor: pointer; white-space: nowrap; transition: all 0.15s; font-family: var(--font);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  color: var(--subtext);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 14px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+  font-family: var(--font);
 }
 .tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 .tab.today  { border-color: var(--accent); color: var(--accent); }
 .tab.today.active { color: #fff; }
 
-/* ── Schedule scroll area ── */
-.schedule { flex: 1; overflow-y: auto; padding: 12px 12px 0; }
+/* ── Schedule body ── */
+.schedule { flex: 1; overflow-y: auto; padding: 10px 12px 0; }
 
-/* ── Calendar grid ── */
-.cal-wrap {
-  direction: ltr;
-  display: flex;
+/* ── Slot card ── */
+.slot {
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 11px 13px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: opacity 0.15s;
   position: relative;
-  padding-bottom: 20px;
+  border-left: 4px solid transparent;
 }
+.slot:active { opacity: 0.75; }
+.slot.empty {
+  background: transparent;
+  border: 1.5px dashed var(--available, #3a3a3c);
+  cursor: default;
+  border-left-width: 1.5px;
+}
+.slot.empty:active { opacity: 1; }
 
-.cal-times {
-  width: 44px;
-  position: relative;
+.slot.confirmed { border-left-color: var(--confirmed); }
+.slot.wl        { border-left-color: var(--wl); }
+.slot.pd        { border-left-color: var(--pd); }
+.slot.cancelled { border-left-color: var(--cancelled); opacity: 0.6; }
+.slot.tentative { border-left-color: var(--tentative); }
+
+/* Row 1: time + name + icons */
+.slot-row1 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.slot-time {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--subtext);
+  min-width: 38px;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+.slot-name {
+  font-size: 14px;
+  font-weight: 600;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.slot-badges { display: flex; gap: 4px; flex-shrink: 0; align-items: center; }
+.badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 6px;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+.badge-approved    { background: rgba(48,209,88,0.18);  color: var(--confirmed); }
+.badge-notapproved { background: rgba(255,69,58,0.18);  color: var(--cancelled); }
+.badge-confirmed   { background: rgba(48,209,88,0.18);  color: var(--confirmed); }
+.badge-wl          { background: rgba(255,214,10,0.18); color: var(--wl); }
+.badge-pd          { background: rgba(255,159,10,0.18); color: var(--pd); }
+.badge-cancelled   { background: rgba(255,69,58,0.18);  color: var(--cancelled); }
+.badge-tentative   { background: rgba(99,99,102,0.25);  color: var(--subtext); }
+
+/* Row 2: procedure + duration */
+.slot-row2 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  padding-left: 46px;
+}
+.slot-proc {
+  font-size: 12px;
+  color: var(--subtext);
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.slot-dur {
+  font-size: 11px;
+  color: var(--subtext);
   flex-shrink: 0;
 }
 
-.cal-hour-label {
-  position: absolute;
-  left: 0; right: 0;
-  text-align: right;
-  padding-right: 6px;
-  font-size: 10px;
-  color: var(--subtext);
-  font-variant-numeric: tabular-nums;
-  transform: translateY(-50%);
-  pointer-events: none;
-}
-
-.cal-events {
-  flex: 1;
-  position: relative;
-  border-left: 1px solid var(--border);
-}
-
-.cal-line {
-  position: absolute;
-  left: 0; right: 0;
-  height: 1px;
-  background: var(--border);
-  pointer-events: none;
-}
-.cal-line.half {
-  background: #2a2a2c;
-}
-
-/* ── Slot cards ── */
-.slot {
-  position: absolute;
-  left: 4px; right: 4px;
-  border-radius: var(--radius);
-  padding: 6px 8px;
-  cursor: pointer;
-  overflow: hidden;
-  transition: opacity 0.15s;
-  border-right: 3px solid transparent;
-  direction: rtl;
-  user-select: none;
-  -webkit-user-select: none;
-}
-.slot.dragging { opacity: 0.3 !important; }
-
-.slot.confirmed { background: #1a3a24; border-right-color: var(--confirmed); }
-.slot.wl        { background: #3a2e00; border-right-color: var(--wl); }
-.slot.pd        { background: #3a2200; border-right-color: var(--pd); }
-.slot.cancelled { background: #3a1010; border-right-color: var(--cancelled); }
-
-.slot-inner {
-  height: 100%;
+/* Row 3: file + phone */
+.slot-row3 {
   display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: 2px;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+  padding-left: 46px;
 }
+.slot-file  { font-size: 11px; color: var(--subtext); }
+.slot-phone { font-size: 11px; color: var(--subtext); }
 
-.slot-top {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 4px;
-}
-
-.slot-name {
-  font-size: 13px;
-  font-weight: 700;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  flex: 1;
-  line-height: 1.3;
-}
-
-.slot-status-icon { font-size: 13px; flex-shrink: 0; }
-
-.slot-proc {
-  font-size: 11px;
-  color: var(--subtext);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.slot-meta {
-  font-size: 10px;
-  color: var(--subtext);
-  white-space: nowrap;
-}
-
-/* ── Drag ghost ── */
-#drag-ghost {
-  position: fixed;
-  z-index: 300;
-  pointer-events: none;
-  border-radius: var(--radius);
-  padding: 6px 8px;
-  border-right: 3px solid transparent;
-  direction: rtl;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.6);
-  opacity: 0.9;
-}
-
-/* ── Drop indicator ── */
-#drop-indicator {
-  position: absolute;
-  left: 0; right: 0;
-  height: 2px;
-  background: var(--accent);
-  z-index: 100;
-  pointer-events: none;
-  box-shadow: 0 0 6px var(--accent);
-}
-#drop-time-badge {
-  position: absolute;
-  right: 6px;
-  background: var(--accent);
-  color: #fff;
-  font-size: 10px;
-  font-weight: 700;
-  padding: 2px 5px;
-  border-radius: 4px;
-  top: -9px;
-  pointer-events: none;
-  font-variant-numeric: tabular-nums;
-  direction: ltr;
-}
+/* Empty slot */
+.slot-available { font-size: 13px; color: var(--subtext); padding-left: 46px; }
 
 /* ── Day footer ── */
 .day-footer {
   padding: 10px 12px;
   background: var(--bg);
   border-top: 1px solid var(--border);
-  display: flex; gap: 8px; flex-shrink: 0;
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
 }
 .day-footer button {
-  flex: 1; padding: 10px; border-radius: var(--radius);
-  border: none; font-size: 14px; font-weight: 600;
-  cursor: pointer; font-family: var(--font); transition: opacity 0.15s;
+  flex: 1; padding: 10px;
+  border-radius: var(--radius); border: none;
+  font-size: 14px; font-weight: 600;
+  cursor: pointer; font-family: var(--font);
+  transition: opacity 0.15s;
 }
 .day-footer button:active { opacity: 0.75; }
 .btn-confirm-all { background: var(--confirmed); color: #000; }
@@ -225,29 +204,51 @@ body { display: flex; flex-direction: column; overflow: hidden; }
 
 /* ── Stats bar ── */
 .stats-bar {
-  padding: 8px 16px; background: var(--surface);
+  padding: 7px 16px;
+  background: var(--surface);
   border-top: 1px solid var(--border);
-  font-size: 12px; color: var(--subtext); text-align: center; flex-shrink: 0;
+  font-size: 12px;
+  color: var(--subtext);
+  text-align: center;
+  flex-shrink: 0;
 }
 .stats-bar span { margin: 0 4px; }
 
-/* ── Dialogs ── */
+/* ── Dialog ── */
 .dialog-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.7);
-  display: flex; align-items: flex-end; z-index: 100;
-  opacity: 0; pointer-events: none; transition: opacity 0.2s;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.7);
+  display: flex; align-items: flex-end;
+  z-index: 100;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.2s;
 }
 .dialog-overlay.visible { opacity: 1; pointer-events: auto; }
 .dialog {
-  background: var(--surface); border-radius: 16px 16px 0 0;
-  padding: 20px 16px 32px; width: 100%;
+  background: var(--surface);
+  border-radius: 16px 16px 0 0;
+  padding: 20px 16px 32px;
+  width: 100%;
   transform: translateY(100%);
   transition: transform 0.25s cubic-bezier(0.32,0,0,1);
 }
 .dialog-overlay.visible .dialog { transform: translateY(0); }
-.dialog-title { font-size: 13px; color: var(--subtext); text-align: center; margin-bottom: 4px; }
-.dialog-name  { font-size: 17px; font-weight: 700; text-align: center; margin-bottom: 16px; }
-.dialog-options { display: grid; gap: 8px; }
+
+.dialog-header {
+  text-align: center;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.dialog-name {
+  font-size: 17px; font-weight: 700; margin-bottom: 6px;
+}
+.dialog-meta {
+  font-size: 13px; color: var(--subtext); margin-bottom: 6px;
+}
+.dialog-badges { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; }
+
+.dialog-options { display: grid; gap: 8px; margin-bottom: 10px; }
 .dialog-opt {
   padding: 14px; border-radius: var(--radius); border: none;
   font-size: 15px; font-weight: 600; cursor: pointer;
@@ -259,8 +260,8 @@ body { display: flex; flex-direction: column; overflow: hidden; }
 .opt-wl        { background: var(--wl);        color: #000; }
 .opt-pd        { background: var(--pd);        color: #000; }
 .opt-cancelled { background: var(--cancelled); color: #fff; }
-.opt-cancel    { background: var(--card); color: var(--text); }
-.opt-move      { background: var(--accent); color: #fff; }
+.opt-topic     { background: var(--accent);    color: #fff; }
+.opt-cancel    { background: var(--card);       color: var(--text); }
 
 /* ── Loading / empty ── */
 .loading {
@@ -269,8 +270,10 @@ body { display: flex; flex-direction: column; overflow: hidden; }
 }
 .spinner {
   width: 32px; height: 32px;
-  border: 3px solid var(--border); border-top-color: var(--accent);
-  border-radius: 50%; animation: spin 0.8s linear infinite;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 .no-data { text-align: center; padding: 32px; color: var(--subtext); font-size: 14px; }
@@ -279,8 +282,8 @@ body { display: flex; flex-direction: column; overflow: hidden; }
 <body>
 
 <div class="header">
-  <h1>🏥 جدول غرفة العمليات</h1>
-  <button class="refresh-btn" onclick="loadData()" title="تحديث">↻</button>
+  <h1>🏥 OR Schedule</h1>
+  <button class="refresh-btn" onclick="loadData()" title="Refresh">↻</button>
 </div>
 
 <div class="tabs-wrap">
@@ -288,12 +291,12 @@ body { display: flex; flex-direction: column; overflow: hidden; }
 </div>
 
 <div class="schedule" id="schedule">
-  <div class="loading"><div class="spinner"></div><span>جاري التحميل...</span></div>
+  <div class="loading"><div class="spinner"></div><span>Loading...</span></div>
 </div>
 
 <div class="day-footer" id="dayFooter" style="display:none">
-  <button class="btn-confirm-all" onclick="confirmAll()">✅ تأكيد الكل</button>
-  <button class="btn-cancel-day"  onclick="cancelDay()">🔴 إلغاء اليوم</button>
+  <button class="btn-confirm-all" onclick="confirmAll()">✅ Confirm All</button>
+  <button class="btn-cancel-day"  onclick="cancelDay()">🔴 Cancel Day</button>
 </div>
 
 <div class="stats-bar" id="statsBar" style="display:none"></div>
@@ -301,27 +304,21 @@ body { display: flex; flex-direction: column; overflow: hidden; }
 <!-- Status dialog -->
 <div class="dialog-overlay" id="dialogOverlay" onclick="closeDialog(event)">
   <div class="dialog">
-    <div class="dialog-title" id="dialogDate"></div>
-    <div class="dialog-name"  id="dialogName"></div>
-    <div class="dialog-options">
-      <button class="dialog-opt opt-confirmed" onclick="setStatus('Confirmed')">✅ مؤكد</button>
-      <button class="dialog-opt opt-wl"        onclick="setStatus('WL')">⏳ قائمة انتظار</button>
-      <button class="dialog-opt opt-pd"        onclick="setStatus('PD')">⚠️ قيد القرار</button>
-      <button class="dialog-opt opt-cancelled" onclick="setStatus('Cancelled')">❌ إلغاء</button>
-      <button class="dialog-opt opt-cancel"    onclick="closeDialog()">إغلاق</button>
+    <div class="dialog-header">
+      <div class="dialog-name"  id="dialogName"></div>
+      <div class="dialog-meta"  id="dialogMeta"></div>
+      <div class="dialog-badges" id="dialogBadges"></div>
     </div>
-  </div>
-</div>
-
-<!-- Reschedule confirm dialog -->
-<div class="dialog-overlay" id="rescheduleOverlay" onclick="closeReschedule(event)">
-  <div class="dialog">
-    <div class="dialog-title">تغيير الموعد</div>
-    <div class="dialog-name" id="rescheduleInfo"></div>
     <div class="dialog-options">
-      <button class="dialog-opt opt-move" onclick="confirmReschedule()">📅 تأكيد النقل</button>
-      <button class="dialog-opt opt-cancel" onclick="closeReschedule()">إلغاء</button>
+      <button class="dialog-opt opt-confirmed" onclick="setStatus('Confirmed')">✅ Confirmed</button>
+      <button class="dialog-opt opt-wl"        onclick="setStatus('WL')">⏳ Waiting List (WL)</button>
+      <button class="dialog-opt opt-pd"        onclick="setStatus('PD')">⚠️ Pending Decision (PD)</button>
+      <button class="dialog-opt opt-cancelled" onclick="setStatus('Cancelled')">❌ Cancelled</button>
     </div>
+    <div id="dialogTopicWrap" style="display:none; margin-bottom:8px;">
+      <button class="dialog-opt opt-topic" onclick="openTopic()">🔗 Open Telegram Topic</button>
+    </div>
+    <button class="dialog-opt opt-cancel" onclick="closeDialog()">Close</button>
   </div>
 </div>
 
@@ -332,194 +329,28 @@ if (tg) { tg.ready(); tg.expand(); }
 const _params = new URLSearchParams(window.location.search);
 const API = (_params.get('api') || '').replace(/\/$/, '');
 const HEADERS = { 'Bypass-Tunnel-Reminder': 'true', 'Content-Type': 'application/json' };
-
 function apiFetch(path, opts = {}) {
   return fetch(API + path, { ...opts, headers: { ...HEADERS, ...(opts.headers || {}) } });
 }
 
-const AR_DAYS   = ['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
-const AR_MONTHS = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
-const STATUS_ICON = { confirmed: '✅', wl: '⏳', pd: '⚠️', cancelled: '❌', blue: '🔵' };
+const EN_DAYS   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const EN_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-const HOUR_H  = 72;
-const MIN_H   = 7;
-const MAX_H   = 18;
+const STATUS_LABELS = {
+  confirmed: 'Confirmed', wl: 'WL', pd: 'PD', cancelled: 'Cancelled', tentative: 'Tentative'
+};
 
-let allPatients    = [];
-let selectedDate   = null;
+let allPatients = [];
+let selectedDate = null;
 let selectedPatient = null;
-let dates          = [];
-let currentTopH    = MIN_H;
+let dates = [];
 
-// ── Drag state ──────────────────────────────────────────────────────────────
-let drag            = null;
-let dragTimer       = null;
-let dragStartTouch  = null;
-let dragJustEnded   = false;
-let pendingReschedule = null;
-
-// Global touch listeners for drag
-document.addEventListener('touchstart',  onTouchStart,  { passive: true });
-document.addEventListener('touchmove',   onTouchMove,   { passive: false });
-document.addEventListener('touchend',    onTouchEnd,    { passive: true });
-document.addEventListener('touchcancel', cancelDrag,    { passive: true });
-
-// Tap delegation (replaces inline onclick on .slot)
-document.addEventListener('click', (e) => {
-  if (dragJustEnded) { dragJustEnded = false; return; }
-  const slot = e.target.closest('.slot');
-  if (!slot) return;
-  const rowNum = parseInt(slot.dataset.rownum);
-  openDialog(rowNum);
-});
-
-function onTouchStart(e) {
-  const slot = e.target.closest('.slot');
-  if (!slot) return;
-
-  dragStartTouch = e.touches[0];
-  const rowNum = parseInt(slot.dataset.rownum);
-  const p = allPatients.find(x => x.rowNum === rowNum);
-  if (!p) return;
-
-  dragTimer = setTimeout(() => {
-    dragTimer = null;
-    const calEvents = document.querySelector('.cal-events');
-    if (!calEvents) return;
-    const rect = calEvents.getBoundingClientRect();
-    const slotRect = slot.getBoundingClientRect();
-
-    // Ghost card
-    const ghost = slot.cloneNode(true);
-    ghost.id = 'drag-ghost';
-    ghost.removeAttribute('data-rownum');
-    ghost.className = slot.className.replace('slot', 'slot').split(' ').filter(c => c !== 'dragging').join(' ');
-    Object.assign(ghost.style, {
-      position: 'fixed',
-      left: `${rect.left + 4}px`,
-      width: `${rect.width - 8}px`,
-      height: `${slotRect.height}px`,
-      top: `${slotRect.top}px`,
-      zIndex: '300',
-    });
-    document.body.appendChild(ghost);
-
-    // Drop indicator
-    const indicator = document.createElement('div');
-    indicator.id = 'drop-indicator';
-    const badge = document.createElement('div');
-    badge.id = 'drop-time-badge';
-    indicator.appendChild(badge);
-    calEvents.appendChild(indicator);
-
-    slot.classList.add('dragging');
-
-    drag = {
-      rowNum, p, slot, ghost, indicator, badge, calEvents, rect,
-      offsetY: dragStartTouch.clientY - slotRect.top,
-      newTime: null,
-    };
-
-    if (navigator.vibrate) navigator.vibrate([30]);
-  }, 500);
-}
-
-function onTouchMove(e) {
-  // Cancel long-press if finger moves significantly before drag starts
-  if (dragTimer && dragStartTouch) {
-    const dx = Math.abs(e.touches[0].clientX - dragStartTouch.clientX);
-    const dy = Math.abs(e.touches[0].clientY - dragStartTouch.clientY);
-    if (dx > 8 || dy > 8) { clearTimeout(dragTimer); dragTimer = null; }
-  }
-
-  if (!drag) return;
-  e.preventDefault();
-
-  const touch = e.touches[0];
-  // Move ghost
-  drag.ghost.style.top = `${touch.clientY - drag.offsetY}px`;
-
-  // Compute snapped time from position in cal-events
-  const rect = drag.calEvents.getBoundingClientRect();
-  const relY = touch.clientY - drag.offsetY - rect.top;
-  const minutesFromTop = Math.round((relY / HOUR_H) * 2) * 30; // snap 30min
-  const clamped = Math.max(0, minutesFromTop);
-  const snappedY = (clamped / 60) * HOUR_H;
-
-  const totalMinutes = currentTopH * 60 + clamped;
-  const h = Math.floor(totalMinutes / 60);
-  const m = totalMinutes % 60;
-  const timeStr = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
-
-  drag.indicator.style.top = `${snappedY}px`;
-  drag.badge.textContent = timeStr;
-  drag.newTime = timeStr;
-}
-
-function onTouchEnd() {
-  clearTimeout(dragTimer); dragTimer = null;
-  if (!drag) return;
-
-  const { rowNum, p, slot, ghost, indicator, newTime } = drag;
-  ghost.remove();
-  indicator.remove();
-  slot.classList.remove('dragging');
-  drag = null;
-  dragJustEnded = true;
-  setTimeout(() => { dragJustEnded = false; }, 350);
-
-  if (!newTime || newTime === p.timeStart) return;
-
-  pendingReschedule = { rowNum, newTime };
-  document.getElementById('rescheduleInfo').textContent =
-    `${p.name}   ${p.timeStart} ← ${newTime}`;
-  document.getElementById('rescheduleOverlay').classList.add('visible');
-}
-
-function cancelDrag() {
-  clearTimeout(dragTimer); dragTimer = null;
-  if (!drag) return;
-  drag.ghost?.remove();
-  drag.indicator?.remove();
-  drag.slot?.classList.remove('dragging');
-  drag = null;
-}
-
-function closeReschedule(e) {
-  if (!e || e.target === document.getElementById('rescheduleOverlay')) {
-    document.getElementById('rescheduleOverlay').classList.remove('visible');
-    pendingReschedule = null;
-  }
-}
-
-async function confirmReschedule() {
-  if (!pendingReschedule) return;
-  document.getElementById('rescheduleOverlay').classList.remove('visible');
-  const { rowNum, newTime } = pendingReschedule;
-  pendingReschedule = null;
-  try {
-    const res = await apiFetch('/api/reschedule', {
-      method: 'POST',
-      body: JSON.stringify({ rowNum, newTime }),
-    });
-    const data = await res.json();
-    if (data.ok) {
-      await loadData();
-      if (tg) tg.HapticFeedback?.notificationOccurred('success');
-    } else {
-      alert('خطأ: ' + (data.error || 'فشل تغيير الموعد'));
-    }
-  } catch (err) {
-    alert('خطأ في الاتصال: ' + err.message);
-  }
-}
-
-// ── Data loading ─────────────────────────────────────────────────────────────
 async function loadData() {
   document.getElementById('schedule').innerHTML =
-    '<div class="loading"><div class="spinner"></div><span>جاري التحميل...</span></div>';
+    '<div class="loading"><div class="spinner"></div><span>Loading...</span></div>';
   document.getElementById('dayFooter').style.display = 'none';
-  document.getElementById('statsBar').style.display  = 'none';
+  document.getElementById('statsBar').style.display = 'none';
+
   try {
     const res = await apiFetch('/api/schedule');
     allPatients = await res.json();
@@ -527,16 +358,17 @@ async function loadData() {
 
     dates = [...new Set(allPatients.map(p => p.dateISO))].sort();
     if (dates.length === 0) {
-      document.getElementById('schedule').innerHTML = '<div class="no-data">لا يوجد مرضى مجدولون</div>';
+      document.getElementById('schedule').innerHTML = '<div class="no-data">No scheduled patients</div>';
       document.getElementById('tabs').innerHTML = '';
       return;
     }
+
     buildTabs();
     if (!selectedDate || !dates.includes(selectedDate)) selectedDate = dates[0];
     renderDay(selectedDate);
   } catch (e) {
     document.getElementById('schedule').innerHTML =
-      `<div class="no-data">خطأ في تحميل البيانات<br><small>${e.message}</small></div>`;
+      `<div class="no-data">Error loading data<br><small>${e.message}</small></div>`;
   }
 }
 
@@ -545,7 +377,7 @@ function buildTabs() {
   const todayISO = new Date().toISOString().slice(0, 10);
   tabs.innerHTML = dates.map(d => {
     const dt = new Date(d + 'T00:00:00');
-    const label = `${AR_DAYS[dt.getDay()]} ${dt.getDate()} ${AR_MONTHS[dt.getMonth()]}`;
+    const label = `${EN_DAYS[dt.getDay()]} ${dt.getDate()} ${EN_MONTHS[dt.getMonth()]}`;
     const isToday = d === todayISO;
     return `<button class="tab${d === selectedDate ? ' active' : ''}${isToday ? ' today' : ''}"
               onclick="selectDate('${d}')">${isToday ? '📌 ' : ''}${label}</button>`;
@@ -558,91 +390,117 @@ function selectDate(d) {
   renderDay(d);
 }
 
+function statusBadge(sc) {
+  const labels = { confirmed:'Confirmed', wl:'WL', pd:'PD', cancelled:'Cancelled', tentative:'Tentative' };
+  return `<span class="badge badge-${sc}">${labels[sc] || sc}</span>`;
+}
+
+function approvalBadge(p) {
+  if (p.approved)    return '<span class="badge badge-approved">Approved</span>';
+  if (p.notApproved) return '<span class="badge badge-notapproved">Not Approved</span>';
+  return '';
+}
+
 function renderDay(dateISO) {
   const patients = allPatients.filter(p => p.dateISO === dateISO);
+  const MIN_H = 7, MAX_H = 17;
 
-  let topH = MIN_H, botH = MAX_H;
+  const patByHour = {};
   for (const p of patients) {
-    const [h] = (p.timeStart || '07:00').split(':').map(Number);
-    const end = h + (p.durationH || 1);
-    if (h   < topH) topH = h;
-    if (end > botH) botH = end;
+    const [ph] = (p.timeStart || '07:00').split(':').map(Number);
+    patByHour[ph] = p;
   }
-  currentTopH = topH;
-  const totalHours = botH - topH;
-  const gridHeight = totalHours * HOUR_H;
 
-  let timeLabels = '', hourLines = '';
-  for (let h = topH; h <= botH; h++) {
-    const top = (h - topH) * HOUR_H;
-    timeLabels += `<div class="cal-hour-label" style="top:${top}px">${String(h).padStart(2,'0')}:00</div>`;
-    hourLines  += `<div class="cal-line" style="top:${top}px"></div>`;
-    if (h < botH) {
-      hourLines += `<div class="cal-line half" style="top:${top + HOUR_H/2}px"></div>`;
+  const allHours = new Set([...Object.keys(patByHour).map(Number)]);
+  const maxH = Math.max(MAX_H, ...(allHours.size ? [...allHours].map(n => n + 1) : [MAX_H])) + 1;
+
+  let html = '';
+  for (let hour = MIN_H; hour <= maxH; hour++) {
+    const p = patByHour[hour];
+    const timeStr = `${String(hour).padStart(2,'0')}:00`;
+
+    if (p) {
+      const apBadge = approvalBadge(p);
+      const stBadge = statusBadge(p.statusClass);
+      html += `<div class="slot ${p.statusClass}" onclick="openDialog(${p.rowNum})">
+        <div class="slot-row1">
+          <span class="slot-time">${timeStr}</span>
+          <span class="slot-name">${esc(p.fullName)}</span>
+          <div class="slot-badges">${apBadge}${stBadge}</div>
+        </div>`;
+      if (p.procedure) {
+        html += `<div class="slot-row2">
+          <span class="slot-proc">${esc(p.procedure)}</span>
+          <span class="slot-dur">⏱ ${p.duration}</span>
+        </div>`;
+      }
+      const filePart  = p.fileNo  ? `#${esc(p.fileNo)}` : '';
+      const phonePart = p.phone   ? `📞 ${esc(p.phone)}` : '';
+      if (filePart || phonePart) {
+        html += `<div class="slot-row3">
+          ${filePart  ? `<span class="slot-file">${filePart}</span>` : ''}
+          ${phonePart ? `<span class="slot-phone">${phonePart}</span>` : ''}
+        </div>`;
+      }
+      html += `</div>`;
+
+      for (let s = 1; s < p.durationH; s++) {
+        hour++;
+        html += `<div class="slot empty">
+          <span class="slot-time">${String(hour).padStart(2,'0')}:00</span>
+          <span class="slot-available">↕ (cont.)</span>
+        </div>`;
+      }
+    } else {
+      html += `<div class="slot empty">
+        <span class="slot-time">${timeStr}</span>
+        <span class="slot-available">Available</span>
+      </div>`;
     }
   }
 
-  let cards = '';
-  for (const p of patients) {
-    const [startH, startM = 0] = (p.timeStart || '07:00').split(':').map(Number);
-    const durationH = p.durationH || 1;
-    const topPx    = (startH - topH + startM / 60) * HOUR_H + 2;
-    const heightPx = durationH * HOUR_H - 4;
-    const icon = STATUS_ICON[p.statusClass] || '🔵';
-    const showMeta = heightPx >= 56;
-
-    // Note: no inline onclick — handled by event delegation
-    cards += `<div class="slot ${p.statusClass}" data-rownum="${p.rowNum}"
-      style="top:${topPx}px; height:${heightPx}px">
-      <div class="slot-inner">
-        <div class="slot-top">
-          <span class="slot-name">${esc(p.name)}</span>
-          <span class="slot-status-icon">${icon}</span>
-        </div>
-        ${p.procedure ? `<span class="slot-proc">${esc(p.procedure)}</span>` : ''}
-        ${showMeta ? `<span class="slot-meta">${p.duration}${p.fileNo ? ' · #' + esc(p.fileNo) : ''}</span>` : ''}
-      </div>
-    </div>`;
-  }
-
-  const html = `<div class="cal-wrap" style="height:${gridHeight}px">
-    <div class="cal-times" style="height:${gridHeight}px">${timeLabels}</div>
-    <div class="cal-events" style="height:${gridHeight}px" data-top-h="${topH}">
-      ${hourLines}
-      ${cards}
-    </div>
-  </div>`;
-
-  document.getElementById('schedule').innerHTML = html ||
-    '<div class="no-data">لا يوجد مرضى</div>';
+  document.getElementById('schedule').innerHTML = html || '<div class="no-data">No patients</div>';
 
   const total     = patients.length;
   const confirmed = patients.filter(p => p.statusClass === 'confirmed').length;
   const wl        = patients.filter(p => p.statusClass === 'wl').length;
   const pd        = patients.filter(p => p.statusClass === 'pd').length;
   const cancelled = patients.filter(p => p.statusClass === 'cancelled').length;
+  const tentative = patients.filter(p => p.statusClass === 'tentative').length;
 
   const statsBar = document.getElementById('statsBar');
   statsBar.style.display = 'block';
-  statsBar.innerHTML = `<span>📊 ${total} مريض</span>` +
-    (confirmed ? `<span>✅ ${confirmed}</span>` : '') +
-    (wl        ? `<span>⏳ ${wl}</span>` : '') +
-    (pd        ? `<span>⚠️ ${pd}</span>` : '') +
-    (cancelled ? `<span>❌ ${cancelled}</span>` : '');
+  statsBar.innerHTML = `<span>📊 ${total} patient${total !== 1 ? 's' : ''}</span>` +
+    (confirmed ? `<span>✅ ${confirmed} confirmed</span>` : '') +
+    (wl        ? `<span>⏳ ${wl} WL</span>` : '') +
+    (pd        ? `<span>⚠️ ${pd} PD</span>` : '') +
+    (tentative ? `<span>🔵 ${tentative} tentative</span>` : '') +
+    (cancelled ? `<span>❌ ${cancelled} cancelled</span>` : '');
 
-  document.getElementById('dayFooter').style.display = patients.length > 0 ? 'flex' : 'none';
+  const footer = document.getElementById('dayFooter');
+  footer.style.display = patients.length > 0 ? 'flex' : 'none';
 }
 
-// ── Status dialog ─────────────────────────────────────────────────────────────
 function openDialog(rowNum) {
   const p = allPatients.find(x => x.rowNum === rowNum);
   if (!p) return;
   selectedPatient = p;
-  const dt = new Date(p.dateISO + 'T00:00:00');
-  document.getElementById('dialogDate').textContent =
-    `${AR_DAYS[dt.getDay()]}، ${dt.getDate()} ${AR_MONTHS[dt.getMonth()]}`;
-  document.getElementById('dialogName').textContent =
-    `${p.fullName || p.name}${p.fileNo ? ' · #' + p.fileNo : ''}`;
+
+  document.getElementById('dialogName').textContent = p.fullName || p.name;
+
+  const metaParts = [];
+  if (p.fileNo)    metaParts.push(`File #${p.fileNo}`);
+  if (p.phone)     metaParts.push(`📞 ${p.phone}`);
+  if (p.procedure) metaParts.push(p.procedure);
+  if (p.duration)  metaParts.push(`⏱ ${p.duration}`);
+  document.getElementById('dialogMeta').textContent = metaParts.join('  ·  ');
+
+  const badgeHtml = approvalBadge(p) + statusBadge(p.statusClass);
+  document.getElementById('dialogBadges').innerHTML = badgeHtml;
+
+  const topicWrap = document.getElementById('dialogTopicWrap');
+  topicWrap.style.display = p.telegramLink ? 'block' : 'none';
+
   document.getElementById('dialogOverlay').classList.add('visible');
 }
 
@@ -653,11 +511,21 @@ function closeDialog(e) {
   }
 }
 
+function openTopic() {
+  if (!selectedPatient?.telegramLink) return;
+  if (tg?.openTelegramLink) {
+    tg.openTelegramLink(selectedPatient.telegramLink);
+  } else {
+    window.open(selectedPatient.telegramLink, '_blank');
+  }
+}
+
 async function setStatus(status) {
   if (!selectedPatient) return;
   document.getElementById('dialogOverlay').classList.remove('visible');
   const p = selectedPatient;
   selectedPatient = null;
+
   try {
     const res = await apiFetch('/api/update', {
       method: 'POST',
@@ -668,29 +536,35 @@ async function setStatus(status) {
       await loadData();
       if (tg) tg.HapticFeedback?.notificationOccurred('success');
     } else {
-      alert('خطأ: ' + (data.error || 'فشل التحديث'));
+      alert('Error: ' + (data.error || 'Update failed'));
     }
   } catch (e) {
-    alert('خطأ في الاتصال: ' + e.message);
+    alert('Connection error: ' + e.message);
   }
 }
 
 async function confirmAll() {
-  const pts = allPatients.filter(p => p.dateISO === selectedDate && p.statusClass !== 'confirmed');
-  if (pts.length === 0) { alert('جميع المرضى مؤكدون'); return; }
-  for (const p of pts) {
-    await apiFetch('/api/update', { method: 'POST', body: JSON.stringify({ rowNum: p.rowNum, status: 'Confirmed' }) });
+  const patients = allPatients.filter(p => p.dateISO === selectedDate && p.statusClass !== 'confirmed');
+  if (patients.length === 0) { alert('All patients are already confirmed'); return; }
+  for (const p of patients) {
+    await apiFetch('/api/update', {
+      method: 'POST',
+      body: JSON.stringify({ rowNum: p.rowNum, status: 'Confirmed' }),
+    });
   }
   await loadData();
   if (tg) tg.HapticFeedback?.notificationOccurred('success');
 }
 
 async function cancelDay() {
-  const pts = allPatients.filter(p => p.dateISO === selectedDate && p.statusClass !== 'cancelled');
-  if (pts.length === 0) { alert('لا يوجد مرضى لإلغائهم'); return; }
-  if (!confirm('تأكيد إلغاء جميع مرضى هذا اليوم؟')) return;
-  for (const p of pts) {
-    await apiFetch('/api/update', { method: 'POST', body: JSON.stringify({ rowNum: p.rowNum, status: 'Cancelled' }) });
+  const patients = allPatients.filter(p => p.dateISO === selectedDate && p.statusClass !== 'cancelled');
+  if (patients.length === 0) { alert('No patients to cancel'); return; }
+  if (!confirm('Cancel all patients for this day?')) return;
+  for (const p of patients) {
+    await apiFetch('/api/update', {
+      method: 'POST',
+      body: JSON.stringify({ rowNum: p.rowNum, status: 'Cancelled' }),
+    });
   }
   await loadData();
 }
