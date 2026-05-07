@@ -21,12 +21,12 @@
   --cancelled: #ff453a;
   --available: #3a3a3c;
   --accent:    #0a84ff;
-  --radius:    12px;
+  --radius:    10px;
   --font:      -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --hour-h:    72px;
 }
 
 html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--font); }
-
 body { display: flex; flex-direction: column; overflow: hidden; }
 
 /* ── Header ── */
@@ -34,9 +34,7 @@ body { display: flex; flex-direction: column; overflow: hidden; }
   padding: 14px 16px 10px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  display: flex; align-items: center; justify-content: space-between;
   flex-shrink: 0;
 }
 .header h1 { font-size: 17px; font-weight: 700; letter-spacing: -0.3px; }
@@ -49,118 +47,112 @@ body { display: flex; flex-direction: column; overflow: hidden; }
 .tabs-wrap {
   background: var(--surface);
   border-bottom: 1px solid var(--border);
-  overflow-x: auto;
-  flex-shrink: 0;
-  scrollbar-width: none;
+  overflow-x: auto; flex-shrink: 0; scrollbar-width: none;
 }
 .tabs-wrap::-webkit-scrollbar { display: none; }
-.tabs {
-  display: flex;
-  padding: 8px 12px;
-  gap: 8px;
-  width: max-content;
-}
+.tabs { display: flex; padding: 8px 12px; gap: 8px; width: max-content; }
 .tab {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  color: var(--subtext);
-  font-size: 13px;
-  font-weight: 500;
-  padding: 6px 14px;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all 0.15s;
-  font-family: var(--font);
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 20px; color: var(--subtext);
+  font-size: 13px; font-weight: 500; padding: 6px 14px;
+  cursor: pointer; white-space: nowrap; transition: all 0.15s; font-family: var(--font);
 }
-.tab.active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
-}
-.tab.today { border-color: var(--accent); color: var(--accent); }
+.tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.tab.today  { border-color: var(--accent); color: var(--accent); }
 .tab.today.active { color: #fff; }
 
-/* ── Schedule body ── */
-.schedule {
-  flex: 1;
-  overflow-y: auto;
-  padding: 12px 12px 0;
+/* ── Schedule scroll area ── */
+.schedule { flex: 1; overflow-y: auto; padding: 12px 12px 0; }
+
+/* ── Calendar grid ── */
+.cal-wrap {
+  direction: ltr; /* keep layout consistent regardless of page RTL */
+  display: flex;
+  position: relative;
+  padding-bottom: 20px;
 }
 
-/* ── Slot card ── */
-.slot {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: var(--card);
-  border-radius: var(--radius);
-  padding: 12px 14px;
-  margin-bottom: 8px;
-  cursor: pointer;
-  transition: opacity 0.15s;
+.cal-times {
+  width: 44px;
   position: relative;
+  flex-shrink: 0;
+}
+
+.cal-hour-label {
+  position: absolute;
+  left: 0; right: 0;
+  text-align: right;
+  padding-right: 6px;
+  font-size: 10px;
+  color: var(--subtext);
+  font-variant-numeric: tabular-nums;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.cal-events {
+  flex: 1;
+  position: relative;
+  border-left: 1px solid var(--border);
+}
+
+.cal-line {
+  position: absolute;
+  left: 0; right: 0;
+  height: 1px;
+  background: var(--border);
+  pointer-events: none;
+}
+.cal-line.half {
+  background: #2a2a2c;
+}
+
+/* ── Slot cards — absolutely positioned ── */
+.slot {
+  position: absolute;
+  left: 4px; right: 4px;
+  border-radius: var(--radius);
+  padding: 6px 8px;
+  cursor: pointer;
+  overflow: hidden;
+  transition: opacity 0.15s;
+  border-right: 3px solid transparent;
+  direction: rtl;
 }
 .slot:active { opacity: 0.75; }
-.slot.empty {
-  background: transparent;
-  border: 1.5px dashed var(--available);
-  cursor: default;
-}
-.slot.empty:active { opacity: 1; }
 
-/* Status bar on left */
-.slot::before {
-  content: '';
-  position: absolute;
-  right: 0; top: 8px; bottom: 8px;
-  width: 4px;
-  border-radius: 2px;
-}
-.slot.confirmed::before { background: var(--confirmed); }
-.slot.wl::before        { background: var(--wl); }
-.slot.pd::before        { background: var(--pd); }
-.slot.cancelled::before { background: var(--cancelled); }
-.slot.empty::before     { display: none; }
+.slot.confirmed { background: #1a3a24; border-right-color: var(--confirmed); }
+.slot.wl        { background: #3a2e00; border-right-color: var(--wl); }
+.slot.pd        { background: #3a2200; border-right-color: var(--pd); }
+.slot.cancelled { background: #3a1010; border-right-color: var(--cancelled); }
 
-.slot-time {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--subtext);
-  min-width: 40px;
-  text-align: center;
-  flex-shrink: 0;
-  font-variant-numeric: tabular-nums;
-}
-
-.slot-body {
-  flex: 1;
+.slot-inner {
+  height: 100%;
   display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 2px;
 }
+
+.slot-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 4px;
+}
+
 .slot-name {
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 700;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-.slot-status-icon { font-size: 16px; flex-shrink: 0; }
-.slot-meta {
-  font-size: 12px;
-  color: var(--subtext);
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-.slot-info {
   flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+  line-height: 1.3;
 }
+
+.slot-status-icon { font-size: 13px; flex-shrink: 0; }
+
 .slot-proc {
   font-size: 11px;
   color: var(--subtext);
@@ -168,15 +160,11 @@ body { display: flex; flex-direction: column; overflow: hidden; }
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.slot-right {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-}
-.slot-available {
-  font-size: 13px;
+
+.slot-meta {
+  font-size: 10px;
   color: var(--subtext);
+  white-space: nowrap;
 }
 
 /* ── Day footer ── */
@@ -184,20 +172,12 @@ body { display: flex; flex-direction: column; overflow: hidden; }
   padding: 10px 12px;
   background: var(--bg);
   border-top: 1px solid var(--border);
-  display: flex;
-  gap: 8px;
-  flex-shrink: 0;
+  display: flex; gap: 8px; flex-shrink: 0;
 }
 .day-footer button {
-  flex: 1;
-  padding: 10px;
-  border-radius: var(--radius);
-  border: none;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  font-family: var(--font);
-  transition: opacity 0.15s;
+  flex: 1; padding: 10px; border-radius: var(--radius);
+  border: none; font-size: 14px; font-weight: 600;
+  cursor: pointer; font-family: var(--font); transition: opacity 0.15s;
 }
 .day-footer button:active { opacity: 0.75; }
 .btn-confirm-all { background: var(--confirmed); color: #000; }
@@ -205,61 +185,34 @@ body { display: flex; flex-direction: column; overflow: hidden; }
 
 /* ── Stats bar ── */
 .stats-bar {
-  padding: 8px 16px;
-  background: var(--surface);
+  padding: 8px 16px; background: var(--surface);
   border-top: 1px solid var(--border);
-  font-size: 12px;
-  color: var(--subtext);
-  text-align: center;
-  flex-shrink: 0;
+  font-size: 12px; color: var(--subtext); text-align: center; flex-shrink: 0;
 }
 .stats-bar span { margin: 0 4px; }
 
 /* ── Status dialog ── */
 .dialog-overlay {
-  position: fixed; inset: 0;
-  background: rgba(0,0,0,0.7);
-  display: flex; align-items: flex-end;
-  z-index: 100;
-  opacity: 0; pointer-events: none;
-  transition: opacity 0.2s;
+  position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+  display: flex; align-items: flex-end; z-index: 100;
+  opacity: 0; pointer-events: none; transition: opacity 0.2s;
 }
 .dialog-overlay.visible { opacity: 1; pointer-events: auto; }
 .dialog {
-  background: var(--surface);
-  border-radius: 16px 16px 0 0;
-  padding: 20px 16px 32px;
-  width: 100%;
+  background: var(--surface); border-radius: 16px 16px 0 0;
+  padding: 20px 16px 32px; width: 100%;
   transform: translateY(100%);
   transition: transform 0.25s cubic-bezier(0.32,0,0,1);
 }
 .dialog-overlay.visible .dialog { transform: translateY(0); }
-.dialog-title {
-  font-size: 13px;
-  color: var(--subtext);
-  text-align: center;
-  margin-bottom: 4px;
-}
-.dialog-name {
-  font-size: 17px;
-  font-weight: 700;
-  text-align: center;
-  margin-bottom: 16px;
-}
+.dialog-title { font-size: 13px; color: var(--subtext); text-align: center; margin-bottom: 4px; }
+.dialog-name  { font-size: 17px; font-weight: 700; text-align: center; margin-bottom: 16px; }
 .dialog-options { display: grid; gap: 8px; }
 .dialog-opt {
-  padding: 14px;
-  border-radius: var(--radius);
-  border: none;
-  font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
-  font-family: var(--font);
-  transition: opacity 0.15s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
+  padding: 14px; border-radius: var(--radius); border: none;
+  font-size: 15px; font-weight: 600; cursor: pointer;
+  font-family: var(--font); transition: opacity 0.15s;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
 }
 .dialog-opt:active { opacity: 0.75; }
 .opt-confirmed { background: var(--confirmed); color: #000; }
@@ -275,16 +228,11 @@ body { display: flex; flex-direction: column; overflow: hidden; }
 }
 .spinner {
   width: 32px; height: 32px;
-  border: 3px solid var(--border);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
+  border: 3px solid var(--border); border-top-color: var(--accent);
+  border-radius: 50%; animation: spin 0.8s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
-
-.no-data {
-  text-align: center; padding: 32px; color: var(--subtext); font-size: 14px;
-}
+.no-data { text-align: center; padding: 32px; color: var(--subtext); font-size: 14px; }
 </style>
 </head>
 <body>
@@ -309,11 +257,10 @@ body { display: flex; flex-direction: column; overflow: hidden; }
 
 <div class="stats-bar" id="statsBar" style="display:none"></div>
 
-<!-- Status dialog -->
 <div class="dialog-overlay" id="dialogOverlay" onclick="closeDialog(event)">
   <div class="dialog">
     <div class="dialog-title" id="dialogDate"></div>
-    <div class="dialog-name" id="dialogName"></div>
+    <div class="dialog-name"  id="dialogName"></div>
     <div class="dialog-options">
       <button class="dialog-opt opt-confirmed" onclick="setStatus('Confirmed')">✅ مؤكد</button>
       <button class="dialog-opt opt-wl"        onclick="setStatus('WL')">⏳ قائمة انتظار</button>
@@ -328,22 +275,21 @@ body { display: flex; flex-direction: column; overflow: hidden; }
 const tg = window.Telegram?.WebApp;
 if (tg) { tg.ready(); tg.expand(); }
 
-// Server base URL — read from ?api= param (when hosted on GitHub Pages)
 const _params = new URLSearchParams(window.location.search);
 const API = (_params.get('api') || '').replace(/\/$/, '');
-
-// Bypass localtunnel protection page
 const HEADERS = { 'Bypass-Tunnel-Reminder': 'true', 'Content-Type': 'application/json' };
+
 function apiFetch(path, opts = {}) {
   return fetch(API + path, { ...opts, headers: { ...HEADERS, ...(opts.headers || {}) } });
 }
 
 const AR_DAYS   = ['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
 const AR_MONTHS = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+const STATUS_ICON = { confirmed: '✅', wl: '⏳', pd: '⚠️', cancelled: '❌', blue: '🔵' };
 
-const STATUS_ICON = {
-  confirmed: '✅', wl: '⏳', pd: '⚠️', cancelled: '❌', blue: '🔵'
-};
+const HOUR_H  = 72; // pixels per hour
+const MIN_H   = 7;
+const MAX_H   = 18;
 
 let allPatients = [];
 let selectedDate = null;
@@ -354,21 +300,18 @@ async function loadData() {
   document.getElementById('schedule').innerHTML =
     '<div class="loading"><div class="spinner"></div><span>جاري التحميل...</span></div>';
   document.getElementById('dayFooter').style.display = 'none';
-  document.getElementById('statsBar').style.display = 'none';
-
+  document.getElementById('statsBar').style.display  = 'none';
   try {
-    const res  = await apiFetch('/api/schedule');
+    const res = await apiFetch('/api/schedule');
     allPatients = await res.json();
     if (!Array.isArray(allPatients)) throw new Error('Invalid response');
 
-    // Unique sorted dates
     dates = [...new Set(allPatients.map(p => p.dateISO))].sort();
     if (dates.length === 0) {
       document.getElementById('schedule').innerHTML = '<div class="no-data">لا يوجد مرضى مجدولون</div>';
       document.getElementById('tabs').innerHTML = '';
       return;
     }
-
     buildTabs();
     if (!selectedDate || !dates.includes(selectedDate)) selectedDate = dates[0];
     renderDay(selectedDate);
@@ -398,70 +341,67 @@ function selectDate(d) {
 
 function renderDay(dateISO) {
   const patients = allPatients.filter(p => p.dateISO === dateISO);
-  const dt = new Date(dateISO + 'T00:00:00');
 
-  // Build hour grid 07–17
-  const MIN_H = 7, MAX_H = 17;
-  const occupiedHours = new Set();
+  // Determine actual hour range — extend if needed
+  let topH = MIN_H, botH = MAX_H;
   for (const p of patients) {
     const [h] = (p.timeStart || '07:00').split(':').map(Number);
-    for (let i = 0; i < (p.durationH || 1); i++) occupiedHours.add(h + i);
+    const end = h + (p.durationH || 1);
+    if (h   < topH) topH = h;
+    if (end > botH) botH = end;
   }
+  const totalHours  = botH - topH;
+  const gridHeight  = totalHours * HOUR_H;
 
-  let html = '';
-  let h = MIN_H;
-  const patByHour = {};
-  for (const p of patients) {
-    const [ph] = (p.timeStart || '07:00').split(':').map(Number);
-    patByHour[ph] = p;
-  }
-
-  // Show all occupied hours + 2 empty slots at end
-  const allHours = new Set([...Object.keys(patByHour).map(Number)]);
-  const maxH = Math.max(MAX_H, ...[...allHours].map(n => n + 1)) + 1;
-
-  for (let hour = MIN_H; hour <= maxH; hour++) {
-    const p = patByHour[hour];
-    const timeStr = `${String(hour).padStart(2,'0')}:00`;
-
-    if (p) {
-      const icon = STATUS_ICON[p.statusClass] || '🔵';
-      html += `<div class="slot ${p.statusClass}" onclick="openDialog(${p.rowNum})">
-        <span class="slot-time">${timeStr}</span>
-        <div class="slot-body">
-          <div class="slot-info">
-            <span class="slot-name">${esc(p.name)}</span>
-            ${p.procedure ? `<span class="slot-proc">${esc(p.procedure)}</span>` : ''}
-          </div>
-          <div class="slot-right">
-            <span class="slot-status-icon">${icon}</span>
-            <span class="slot-meta">${p.duration}${p.fileNo ? ' · #' + esc(p.fileNo) : ''}</span>
-          </div>
-        </div>
-      </div>`;
-      // skip spanned hours
-      if (p.durationH > 1) {
-        for (let s = 1; s < p.durationH; s++) {
-          hour++;
-          const spanTime = `${String(hour).padStart(2,'0')}:00`;
-          html += `<div class="slot empty">
-            <span class="slot-time">${spanTime}</span>
-            <span class="slot-available">↕</span>
-          </div>`;
-        }
-      }
-    } else {
-      html += `<div class="slot empty">
-        <span class="slot-time">${timeStr}</span>
-        <span class="slot-available">⬜ متاح</span>
-      </div>`;
+  // Time labels + hour lines
+  let timeLabels = '', hourLines = '';
+  for (let h = topH; h <= botH; h++) {
+    const top = (h - topH) * HOUR_H;
+    timeLabels += `<div class="cal-hour-label" style="top:${top}px">${String(h).padStart(2,'0')}:00</div>`;
+    hourLines  += `<div class="cal-line" style="top:${top}px"></div>`;
+    // half-hour line
+    if (h < botH) {
+      hourLines += `<div class="cal-line half" style="top:${top + HOUR_H/2}px"></div>`;
     }
   }
 
-  document.getElementById('schedule').innerHTML = html || '<div class="no-data">لا يوجد مرضى</div>';
+  // Patient cards
+  let cards = '';
+  for (const p of patients) {
+    const [startH, startM = 0] = (p.timeStart || '07:00').split(':').map(Number);
+    const durationH = p.durationH || 1;
+    const topPx   = (startH - topH + startM / 60) * HOUR_H + 2;
+    const heightPx = durationH * HOUR_H - 4;
+    const icon = STATUS_ICON[p.statusClass] || '🔵';
+    const showMeta = heightPx >= 56;
+
+    cards += `<div class="slot ${p.statusClass}"
+      style="top:${topPx}px; height:${heightPx}px"
+      onclick="openDialog(${p.rowNum})">
+      <div class="slot-inner">
+        <div class="slot-top">
+          <span class="slot-name">${esc(p.name)}</span>
+          <span class="slot-status-icon">${icon}</span>
+        </div>
+        ${p.procedure ? `<span class="slot-proc">${esc(p.procedure)}</span>` : ''}
+        ${showMeta ? `<span class="slot-meta">${p.duration}${p.fileNo ? ' · #' + esc(p.fileNo) : ''}</span>` : ''}
+      </div>
+    </div>`;
+  }
+
+  const html = `<div class="cal-wrap" style="height:${gridHeight}px">
+    <div class="cal-times" style="height:${gridHeight}px">${timeLabels}</div>
+    <div class="cal-events" style="height:${gridHeight}px">
+      ${hourLines}
+      ${cards}
+    </div>
+  </div>`;
+
+  document.getElementById('schedule').innerHTML = html ||
+    '<div class="no-data">لا يوجد مرضى</div>';
 
   // Stats
-  const total = patients.length;
+  const total     = patients.length;
   const confirmed = patients.filter(p => p.statusClass === 'confirmed').length;
   const wl        = patients.filter(p => p.statusClass === 'wl').length;
   const pd        = patients.filter(p => p.statusClass === 'pd').length;
@@ -475,8 +415,7 @@ function renderDay(dateISO) {
     (pd        ? `<span>⚠️ ${pd}</span>` : '') +
     (cancelled ? `<span>❌ ${cancelled}</span>` : '');
 
-  const footer = document.getElementById('dayFooter');
-  footer.style.display = patients.length > 0 ? 'flex' : 'none';
+  document.getElementById('dayFooter').style.display = patients.length > 0 ? 'flex' : 'none';
 }
 
 function openDialog(rowNum) {
@@ -503,7 +442,6 @@ async function setStatus(status) {
   document.getElementById('dialogOverlay').classList.remove('visible');
   const p = selectedPatient;
   selectedPatient = null;
-
   try {
     const res = await apiFetch('/api/update', {
       method: 'POST',
@@ -522,27 +460,21 @@ async function setStatus(status) {
 }
 
 async function confirmAll() {
-  const patients = allPatients.filter(p => p.dateISO === selectedDate && p.statusClass !== 'confirmed');
-  if (patients.length === 0) { alert('جميع المرضى مؤكدون'); return; }
-  for (const p of patients) {
-    await apiFetch('/api/update', {
-      method: 'POST',
-      body: JSON.stringify({ rowNum: p.rowNum, status: 'Confirmed' }),
-    });
+  const pts = allPatients.filter(p => p.dateISO === selectedDate && p.statusClass !== 'confirmed');
+  if (pts.length === 0) { alert('جميع المرضى مؤكدون'); return; }
+  for (const p of pts) {
+    await apiFetch('/api/update', { method: 'POST', body: JSON.stringify({ rowNum: p.rowNum, status: 'Confirmed' }) });
   }
   await loadData();
   if (tg) tg.HapticFeedback?.notificationOccurred('success');
 }
 
 async function cancelDay() {
-  const patients = allPatients.filter(p => p.dateISO === selectedDate && p.statusClass !== 'cancelled');
-  if (patients.length === 0) { alert('لا يوجد مرضى لإلغائهم'); return; }
+  const pts = allPatients.filter(p => p.dateISO === selectedDate && p.statusClass !== 'cancelled');
+  if (pts.length === 0) { alert('لا يوجد مرضى لإلغائهم'); return; }
   if (!confirm('تأكيد إلغاء جميع مرضى هذا اليوم؟')) return;
-  for (const p of patients) {
-    await apiFetch('/api/update', {
-      method: 'POST',
-      body: JSON.stringify({ rowNum: p.rowNum, status: 'Cancelled' }),
-    });
+  for (const p of pts) {
+    await apiFetch('/api/update', { method: 'POST', body: JSON.stringify({ rowNum: p.rowNum, status: 'Cancelled' }) });
   }
   await loadData();
 }
@@ -551,14 +483,13 @@ function esc(s) {
   return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-// Apply Telegram theme if available
 if (tg?.themeParams) {
   const tp = tg.themeParams;
-  if (tp.bg_color)        document.documentElement.style.setProperty('--bg',      tp.bg_color);
+  if (tp.bg_color)           document.documentElement.style.setProperty('--bg',      tp.bg_color);
   if (tp.secondary_bg_color) document.documentElement.style.setProperty('--surface', tp.secondary_bg_color);
-  if (tp.text_color)      document.documentElement.style.setProperty('--text',    tp.text_color);
-  if (tp.hint_color)      document.documentElement.style.setProperty('--subtext', tp.hint_color);
-  if (tp.link_color)      document.documentElement.style.setProperty('--accent',  tp.link_color);
+  if (tp.text_color)         document.documentElement.style.setProperty('--text',    tp.text_color);
+  if (tp.hint_color)         document.documentElement.style.setProperty('--subtext', tp.hint_color);
+  if (tp.link_color)         document.documentElement.style.setProperty('--accent',  tp.link_color);
 }
 
 loadData();
