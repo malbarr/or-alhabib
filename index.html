@@ -66,7 +66,7 @@ body { display: flex; flex-direction: column; overflow: hidden; }
 
 /* ── Calendar grid ── */
 .cal-wrap {
-  direction: ltr; /* keep layout consistent regardless of page RTL */
+  direction: ltr;
   display: flex;
   position: relative;
   padding-bottom: 20px;
@@ -107,7 +107,7 @@ body { display: flex; flex-direction: column; overflow: hidden; }
   background: #2a2a2c;
 }
 
-/* ── Slot cards — absolutely positioned ── */
+/* ── Slot cards ── */
 .slot {
   position: absolute;
   left: 4px; right: 4px;
@@ -118,8 +118,10 @@ body { display: flex; flex-direction: column; overflow: hidden; }
   transition: opacity 0.15s;
   border-right: 3px solid transparent;
   direction: rtl;
+  user-select: none;
+  -webkit-user-select: none;
 }
-.slot:active { opacity: 0.75; }
+.slot.dragging { opacity: 0.3 !important; }
 
 .slot.confirmed { background: #1a3a24; border-right-color: var(--confirmed); }
 .slot.wl        { background: #3a2e00; border-right-color: var(--wl); }
@@ -167,6 +169,44 @@ body { display: flex; flex-direction: column; overflow: hidden; }
   white-space: nowrap;
 }
 
+/* ── Drag ghost ── */
+#drag-ghost {
+  position: fixed;
+  z-index: 300;
+  pointer-events: none;
+  border-radius: var(--radius);
+  padding: 6px 8px;
+  border-right: 3px solid transparent;
+  direction: rtl;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+  opacity: 0.9;
+}
+
+/* ── Drop indicator ── */
+#drop-indicator {
+  position: absolute;
+  left: 0; right: 0;
+  height: 2px;
+  background: var(--accent);
+  z-index: 100;
+  pointer-events: none;
+  box-shadow: 0 0 6px var(--accent);
+}
+#drop-time-badge {
+  position: absolute;
+  right: 6px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 5px;
+  border-radius: 4px;
+  top: -9px;
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
+  direction: ltr;
+}
+
 /* ── Day footer ── */
 .day-footer {
   padding: 10px 12px;
@@ -191,7 +231,7 @@ body { display: flex; flex-direction: column; overflow: hidden; }
 }
 .stats-bar span { margin: 0 4px; }
 
-/* ── Status dialog ── */
+/* ── Dialogs ── */
 .dialog-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.7);
   display: flex; align-items: flex-end; z-index: 100;
@@ -220,6 +260,7 @@ body { display: flex; flex-direction: column; overflow: hidden; }
 .opt-pd        { background: var(--pd);        color: #000; }
 .opt-cancelled { background: var(--cancelled); color: #fff; }
 .opt-cancel    { background: var(--card); color: var(--text); }
+.opt-move      { background: var(--accent); color: #fff; }
 
 /* ── Loading / empty ── */
 .loading {
@@ -257,6 +298,7 @@ body { display: flex; flex-direction: column; overflow: hidden; }
 
 <div class="stats-bar" id="statsBar" style="display:none"></div>
 
+<!-- Status dialog -->
 <div class="dialog-overlay" id="dialogOverlay" onclick="closeDialog(event)">
   <div class="dialog">
     <div class="dialog-title" id="dialogDate"></div>
@@ -267,6 +309,18 @@ body { display: flex; flex-direction: column; overflow: hidden; }
       <button class="dialog-opt opt-pd"        onclick="setStatus('PD')">⚠️ قيد القرار</button>
       <button class="dialog-opt opt-cancelled" onclick="setStatus('Cancelled')">❌ إلغاء</button>
       <button class="dialog-opt opt-cancel"    onclick="closeDialog()">إغلاق</button>
+    </div>
+  </div>
+</div>
+
+<!-- Reschedule confirm dialog -->
+<div class="dialog-overlay" id="rescheduleOverlay" onclick="closeReschedule(event)">
+  <div class="dialog">
+    <div class="dialog-title">تغيير الموعد</div>
+    <div class="dialog-name" id="rescheduleInfo"></div>
+    <div class="dialog-options">
+      <button class="dialog-opt opt-move" onclick="confirmReschedule()">📅 تأكيد النقل</button>
+      <button class="dialog-opt opt-cancel" onclick="closeReschedule()">إلغاء</button>
     </div>
   </div>
 </div>
@@ -287,15 +341,180 @@ const AR_DAYS   = ['الأحد','الاثنين','الثلاثاء','الأرب�
 const AR_MONTHS = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
 const STATUS_ICON = { confirmed: '✅', wl: '⏳', pd: '⚠️', cancelled: '❌', blue: '🔵' };
 
-const HOUR_H  = 72; // pixels per hour
+const HOUR_H  = 72;
 const MIN_H   = 7;
 const MAX_H   = 18;
 
-let allPatients = [];
-let selectedDate = null;
+let allPatients    = [];
+let selectedDate   = null;
 let selectedPatient = null;
-let dates = [];
+let dates          = [];
+let currentTopH    = MIN_H;
 
+// ── Drag state ──────────────────────────────────────────────────────────────
+let drag            = null;
+let dragTimer       = null;
+let dragStartTouch  = null;
+let dragJustEnded   = false;
+let pendingReschedule = null;
+
+// Global touch listeners for drag
+document.addEventListener('touchstart',  onTouchStart,  { passive: true });
+document.addEventListener('touchmove',   onTouchMove,   { passive: false });
+document.addEventListener('touchend',    onTouchEnd,    { passive: true });
+document.addEventListener('touchcancel', cancelDrag,    { passive: true });
+
+// Tap delegation (replaces inline onclick on .slot)
+document.addEventListener('click', (e) => {
+  if (dragJustEnded) { dragJustEnded = false; return; }
+  const slot = e.target.closest('.slot');
+  if (!slot) return;
+  const rowNum = parseInt(slot.dataset.rownum);
+  openDialog(rowNum);
+});
+
+function onTouchStart(e) {
+  const slot = e.target.closest('.slot');
+  if (!slot) return;
+
+  dragStartTouch = e.touches[0];
+  const rowNum = parseInt(slot.dataset.rownum);
+  const p = allPatients.find(x => x.rowNum === rowNum);
+  if (!p) return;
+
+  dragTimer = setTimeout(() => {
+    dragTimer = null;
+    const calEvents = document.querySelector('.cal-events');
+    if (!calEvents) return;
+    const rect = calEvents.getBoundingClientRect();
+    const slotRect = slot.getBoundingClientRect();
+
+    // Ghost card
+    const ghost = slot.cloneNode(true);
+    ghost.id = 'drag-ghost';
+    ghost.removeAttribute('data-rownum');
+    ghost.className = slot.className.replace('slot', 'slot').split(' ').filter(c => c !== 'dragging').join(' ');
+    Object.assign(ghost.style, {
+      position: 'fixed',
+      left: `${rect.left + 4}px`,
+      width: `${rect.width - 8}px`,
+      height: `${slotRect.height}px`,
+      top: `${slotRect.top}px`,
+      zIndex: '300',
+    });
+    document.body.appendChild(ghost);
+
+    // Drop indicator
+    const indicator = document.createElement('div');
+    indicator.id = 'drop-indicator';
+    const badge = document.createElement('div');
+    badge.id = 'drop-time-badge';
+    indicator.appendChild(badge);
+    calEvents.appendChild(indicator);
+
+    slot.classList.add('dragging');
+
+    drag = {
+      rowNum, p, slot, ghost, indicator, badge, calEvents, rect,
+      offsetY: dragStartTouch.clientY - slotRect.top,
+      newTime: null,
+    };
+
+    if (navigator.vibrate) navigator.vibrate([30]);
+  }, 500);
+}
+
+function onTouchMove(e) {
+  // Cancel long-press if finger moves significantly before drag starts
+  if (dragTimer && dragStartTouch) {
+    const dx = Math.abs(e.touches[0].clientX - dragStartTouch.clientX);
+    const dy = Math.abs(e.touches[0].clientY - dragStartTouch.clientY);
+    if (dx > 8 || dy > 8) { clearTimeout(dragTimer); dragTimer = null; }
+  }
+
+  if (!drag) return;
+  e.preventDefault();
+
+  const touch = e.touches[0];
+  // Move ghost
+  drag.ghost.style.top = `${touch.clientY - drag.offsetY}px`;
+
+  // Compute snapped time from position in cal-events
+  const rect = drag.calEvents.getBoundingClientRect();
+  const relY = touch.clientY - drag.offsetY - rect.top;
+  const minutesFromTop = Math.round((relY / HOUR_H) * 2) * 30; // snap 30min
+  const clamped = Math.max(0, minutesFromTop);
+  const snappedY = (clamped / 60) * HOUR_H;
+
+  const totalMinutes = currentTopH * 60 + clamped;
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  const timeStr = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+
+  drag.indicator.style.top = `${snappedY}px`;
+  drag.badge.textContent = timeStr;
+  drag.newTime = timeStr;
+}
+
+function onTouchEnd() {
+  clearTimeout(dragTimer); dragTimer = null;
+  if (!drag) return;
+
+  const { rowNum, p, slot, ghost, indicator, newTime } = drag;
+  ghost.remove();
+  indicator.remove();
+  slot.classList.remove('dragging');
+  drag = null;
+  dragJustEnded = true;
+  setTimeout(() => { dragJustEnded = false; }, 350);
+
+  if (!newTime || newTime === p.timeStart) return;
+
+  pendingReschedule = { rowNum, newTime };
+  document.getElementById('rescheduleInfo').textContent =
+    `${p.name}   ${p.timeStart} ← ${newTime}`;
+  document.getElementById('rescheduleOverlay').classList.add('visible');
+}
+
+function cancelDrag() {
+  clearTimeout(dragTimer); dragTimer = null;
+  if (!drag) return;
+  drag.ghost?.remove();
+  drag.indicator?.remove();
+  drag.slot?.classList.remove('dragging');
+  drag = null;
+}
+
+function closeReschedule(e) {
+  if (!e || e.target === document.getElementById('rescheduleOverlay')) {
+    document.getElementById('rescheduleOverlay').classList.remove('visible');
+    pendingReschedule = null;
+  }
+}
+
+async function confirmReschedule() {
+  if (!pendingReschedule) return;
+  document.getElementById('rescheduleOverlay').classList.remove('visible');
+  const { rowNum, newTime } = pendingReschedule;
+  pendingReschedule = null;
+  try {
+    const res = await apiFetch('/api/reschedule', {
+      method: 'POST',
+      body: JSON.stringify({ rowNum, newTime }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      await loadData();
+      if (tg) tg.HapticFeedback?.notificationOccurred('success');
+    } else {
+      alert('خطأ: ' + (data.error || 'فشل تغيير الموعد'));
+    }
+  } catch (err) {
+    alert('خطأ في الاتصال: ' + err.message);
+  }
+}
+
+// ── Data loading ─────────────────────────────────────────────────────────────
 async function loadData() {
   document.getElementById('schedule').innerHTML =
     '<div class="loading"><div class="spinner"></div><span>جاري التحميل...</span></div>';
@@ -342,7 +561,6 @@ function selectDate(d) {
 function renderDay(dateISO) {
   const patients = allPatients.filter(p => p.dateISO === dateISO);
 
-  // Determine actual hour range — extend if needed
   let topH = MIN_H, botH = MAX_H;
   for (const p of patients) {
     const [h] = (p.timeStart || '07:00').split(':').map(Number);
@@ -350,34 +568,32 @@ function renderDay(dateISO) {
     if (h   < topH) topH = h;
     if (end > botH) botH = end;
   }
-  const totalHours  = botH - topH;
-  const gridHeight  = totalHours * HOUR_H;
+  currentTopH = topH;
+  const totalHours = botH - topH;
+  const gridHeight = totalHours * HOUR_H;
 
-  // Time labels + hour lines
   let timeLabels = '', hourLines = '';
   for (let h = topH; h <= botH; h++) {
     const top = (h - topH) * HOUR_H;
     timeLabels += `<div class="cal-hour-label" style="top:${top}px">${String(h).padStart(2,'0')}:00</div>`;
     hourLines  += `<div class="cal-line" style="top:${top}px"></div>`;
-    // half-hour line
     if (h < botH) {
       hourLines += `<div class="cal-line half" style="top:${top + HOUR_H/2}px"></div>`;
     }
   }
 
-  // Patient cards
   let cards = '';
   for (const p of patients) {
     const [startH, startM = 0] = (p.timeStart || '07:00').split(':').map(Number);
     const durationH = p.durationH || 1;
-    const topPx   = (startH - topH + startM / 60) * HOUR_H + 2;
+    const topPx    = (startH - topH + startM / 60) * HOUR_H + 2;
     const heightPx = durationH * HOUR_H - 4;
     const icon = STATUS_ICON[p.statusClass] || '🔵';
     const showMeta = heightPx >= 56;
 
-    cards += `<div class="slot ${p.statusClass}"
-      style="top:${topPx}px; height:${heightPx}px"
-      onclick="openDialog(${p.rowNum})">
+    // Note: no inline onclick — handled by event delegation
+    cards += `<div class="slot ${p.statusClass}" data-rownum="${p.rowNum}"
+      style="top:${topPx}px; height:${heightPx}px">
       <div class="slot-inner">
         <div class="slot-top">
           <span class="slot-name">${esc(p.name)}</span>
@@ -391,7 +607,7 @@ function renderDay(dateISO) {
 
   const html = `<div class="cal-wrap" style="height:${gridHeight}px">
     <div class="cal-times" style="height:${gridHeight}px">${timeLabels}</div>
-    <div class="cal-events" style="height:${gridHeight}px">
+    <div class="cal-events" style="height:${gridHeight}px" data-top-h="${topH}">
       ${hourLines}
       ${cards}
     </div>
@@ -400,7 +616,6 @@ function renderDay(dateISO) {
   document.getElementById('schedule').innerHTML = html ||
     '<div class="no-data">لا يوجد مرضى</div>';
 
-  // Stats
   const total     = patients.length;
   const confirmed = patients.filter(p => p.statusClass === 'confirmed').length;
   const wl        = patients.filter(p => p.statusClass === 'wl').length;
@@ -418,6 +633,7 @@ function renderDay(dateISO) {
   document.getElementById('dayFooter').style.display = patients.length > 0 ? 'flex' : 'none';
 }
 
+// ── Status dialog ─────────────────────────────────────────────────────────────
 function openDialog(rowNum) {
   const p = allPatients.find(x => x.rowNum === rowNum);
   if (!p) return;
