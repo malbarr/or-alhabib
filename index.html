@@ -418,7 +418,22 @@ async function loadData() {
     allPatients = await schedRes.json();
     if (!Array.isArray(allPatients)) throw new Error('Invalid response');
     if (slotsRes && slotsRes.ok) {
-      try { orSlots = await slotsRes.json(); } catch(e) { orSlots = []; }
+      try {
+        const slotsData = await slotsRes.json();
+        if (Array.isArray(slotsData)) {
+          orSlots = slotsData;
+        } else if (slotsData && Array.isArray(slotsData.slots)) {
+          orSlots = slotsData.slots;
+          const badge = document.getElementById('syncBadge');
+          if (badge && slotsData.synced) {
+            const d = new Date(slotsData.synced);
+            badge.textContent = 'GCal ' + d.toLocaleDateString('en', {day:'numeric',month:'short'});
+            badge.style.display = 'inline';
+          }
+        } else {
+          orSlots = [];
+        }
+      } catch(e) { orSlots = []; }
     }
 
     dates = [...new Set(allPatients.map(p => p.dateISO))].sort();
