@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>جدول OR</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        #0f0f0f;
+  --surface:   #1c1c1e;
+  --card:      #2c2c2e;
+  --border:    #3a3a3c;
+  --text:      #ffffff;
+  --subtext:   #8e8e93;
+  --confirmed: #30d158;
+  --wl:        #ffd60a;
+  --pd:        #ff9f0a;
+  --cancelled: #ff453a;
+  --available: #3a3a3c;
+  --accent:    #0a84ff;
+  --radius:    12px;
+  --font:      -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--font); }
+
+body { display: flex; flex-direction: column; overflow: hidden; }
+
+/* ── Header ── */
+.header {
+  padding: 14px 16px 10px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+.header h1 { font-size: 17px; font-weight: 700; letter-spacing: -0.3px; }
+.header .refresh-btn {
+  background: none; border: none; color: var(--accent);
+  font-size: 20px; cursor: pointer; padding: 4px; line-height: 1;
+}
+
+/* ── Date tabs ── */
+.tabs-wrap {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  flex-shrink: 0;
+  scrollbar-width: none;
+}
+.tabs-wrap::-webkit-scrollbar { display: none; }
+.tabs {
+  display: flex;
+  padding: 8px 12px;
+  gap: 8px;
+  width: max-content;
+}
+.tab {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  color: var(--subtext);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 14px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+  font-family: var(--font);
+}
+.tab.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.tab.today { border-color: var(--accent); color: var(--accent); }
+.tab.today.active { color: #fff; }
+
+/* ── Schedule body ── */
+.schedule {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 12px 0;
+}
+
+/* ── Slot card ── */
+.slot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  position: relative;
+}
+.slot:active { opacity: 0.75; }
+.slot.empty {
+  background: transparent;
+  border: 1.5px dashed var(--available);
+  cursor: default;
+}
+.slot.empty:active { opacity: 1; }
+
+/* Status bar on left */
+.slot::before {
+  content: '';
+  position: absolute;
+  right: 0; top: 8px; bottom: 8px;
+  width: 4px;
+  border-radius: 2px;
+}
+.slot.confirmed::before { background: var(--confirmed); }
+.slot.wl::before        { background: var(--wl); }
+.slot.pd::before        { background: var(--pd); }
+.slot.cancelled::before { background: var(--cancelled); }
+.slot.empty::before     { display: none; }
+
+.slot-time {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--subtext);
+  min-width: 40px;
+  text-align: center;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.slot-body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.slot-name {
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.slot-status-icon { font-size: 16px; flex-shrink: 0; }
+.slot-meta {
+  font-size: 12px;
+  color: var(--subtext);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.slot-available {
+  font-size: 13px;
+  color: var(--subtext);
+}
+
+/* ── Day footer ── */
+.day-footer {
+  padding: 10px 12px;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.day-footer button {
+  flex: 1;
+  padding: 10px;
+  border-radius: var(--radius);
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font);
+  transition: opacity 0.15s;
+}
+.day-footer button:active { opacity: 0.75; }
+.btn-confirm-all { background: var(--confirmed); color: #000; }
+.btn-cancel-day  { background: var(--cancelled); color: #fff; }
+
+/* ── Stats bar ── */
+.stats-bar {
+  padding: 8px 16px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--subtext);
+  text-align: center;
+  flex-shrink: 0;
+}
+.stats-bar span { margin: 0 4px; }
+
+/* ── Status dialog ── */
+.dialog-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.7);
+  display: flex; align-items: flex-end;
+  z-index: 100;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.2s;
+}
+.dialog-overlay.visible { opacity: 1; pointer-events: auto; }
+.dialog {
+  background: var(--surface);
+  border-radius: 16px 16px 0 0;
+  padding: 20px 16px 32px;
+  width: 100%;
+  transform: translateY(100%);
+  transition: transform 0.25s cubic-bezier(0.32,0,0,1);
+}
+.dialog-overlay.visible .dialog { transform: translateY(0); }
+.dialog-title {
+  font-size: 13px;
+  color: var(--subtext);
+  text-align: center;
+  margin-bottom: 4px;
+}
+.dialog-name {
+  font-size: 17px;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 16px;
+}
+.dialog-options { display: grid; gap: 8px; }
+.dialog-opt {
+  padding: 14px;
+  border-radius: var(--radius);
+  border: none;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font);
+  transition: opacity 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.dialog-opt:active { opacity: 0.75; }
+.opt-confirmed { background: var(--confirmed); color: #000; }
+.opt-wl        { background: var(--wl);        color: #000; }
+.opt-pd        { background: var(--pd);        color: #000; }
+.opt-cancelled { background: var(--cancelled); color: #fff; }
+.opt-cancel    { background: var(--card); color: var(--text); }
+
+/* ── Loading / empty ── */
+.loading {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  flex-direction: column; gap: 12px; color: var(--subtext);
+}
+.spinner {
+  width: 32px; height: 32px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.no-data {
+  text-align: center; padding: 32px; color: var(--subtext); font-size: 14px;
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🏥 جدول غرفة العمليات</h1>
+  <button class="refresh-btn" onclick="loadData()" title="تحديث">↻</button>
+</div>
+
+<div class="tabs-wrap">
+  <div class="tabs" id="tabs"></div>
+</div>
+
+<div class="schedule" id="schedule">
+  <div class="loading"><div class="spinner"></div><span>جاري التحميل...</span></div>
+</div>
+
+<div class="day-footer" id="dayFooter" style="display:none">
+  <button class="btn-confirm-all" onclick="confirmAll()">✅ تأكيد الكل</button>
+  <button class="btn-cancel-day"  onclick="cancelDay()">🔴 إلغاء اليوم</button>
+</div>
+
+<div class="stats-bar" id="statsBar" style="display:none"></div>
+
+<!-- Status dialog -->
+<div class="dialog-overlay" id="dialogOverlay" onclick="closeDialog(event)">
+  <div class="dialog">
+    <div class="dialog-title" id="dialogDate"></div>
+    <div class="dialog-name" id="dialogName"></div>
+    <div class="dialog-options">
+      <button class="dialog-opt opt-confirmed" onclick="setStatus('Confirmed')">✅ مؤكد</button>
+      <button class="dialog-opt opt-wl"        onclick="setStatus('WL')">⏳ قائمة انتظار</button>
+      <button class="dialog-opt opt-pd"        onclick="setStatus('PD')">⚠️ قيد القرار</button>
+      <button class="dialog-opt opt-cancelled" onclick="setStatus('Cancelled')">❌ إلغاء</button>
+      <button class="dialog-opt opt-cancel"    onclick="closeDialog()">إغلاق</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const tg = window.Telegram?.WebApp;
+if (tg) { tg.ready(); tg.expand(); }
+
+// Server base URL — read from ?api= param (when hosted on GitHub Pages)
+const _params = new URLSearchParams(window.location.search);
+const API = (_params.get('api') || '').replace(/\/$/, '');
+
+// Bypass localtunnel protection page
+const HEADERS = { 'Bypass-Tunnel-Reminder': 'true', 'Content-Type': 'application/json' };
+function apiFetch(path, opts = {}) {
+  return fetch(API + path, { ...opts, headers: { ...HEADERS, ...(opts.headers || {}) } });
+}
+
+const AR_DAYS   = ['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+const AR_MONTHS = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+
+const STATUS_ICON = {
+  confirmed: '✅', wl: '⏳', pd: '⚠️', cancelled: '❌', blue: '🔵'
+};
+
+let allPatients = [];
+let selectedDate = null;
+let selectedPatient = null;
+let dates = [];
+
+async function loadData() {
+  document.getElementById('schedule').innerHTML =
+    '<div class="loading"><div class="spinner"></div><span>جاري التحميل...</span></div>';
+  document.getElementById('dayFooter').style.display = 'none';
+  document.getElementById('statsBar').style.display = 'none';
+
+  try {
+    const res  = await apiFetch('/api/schedule');
+    allPatients = await res.json();
+    if (!Array.isArray(allPatients)) throw new Error('Invalid response');
+
+    // Unique sorted dates
+    dates = [...new Set(allPatients.map(p => p.dateISO))].sort();
+    if (dates.length === 0) {
+      document.getElementById('schedule').innerHTML = '<div class="no-data">لا يوجد مرضى مجدولون</div>';
+      document.getElementById('tabs').innerHTML = '';
+      return;
+    }
+
+    buildTabs();
+    if (!selectedDate || !dates.includes(selectedDate)) selectedDate = dates[0];
+    renderDay(selectedDate);
+  } catch (e) {
+    document.getElementById('schedule').innerHTML =
+      `<div class="no-data">خطأ في تحميل البيانات<br><small>${e.message}</small></div>`;
+  }
+}
+
+function buildTabs() {
+  const tabs = document.getElementById('tabs');
+  const todayISO = new Date().toISOString().slice(0, 10);
+  tabs.innerHTML = dates.map(d => {
+    const dt = new Date(d + 'T00:00:00');
+    const label = `${AR_DAYS[dt.getDay()]} ${dt.getDate()} ${AR_MONTHS[dt.getMonth()]}`;
+    const isToday = d === todayISO;
+    return `<button class="tab${d === selectedDate ? ' active' : ''}${isToday ? ' today' : ''}"
+              onclick="selectDate('${d}')">${isToday ? '📌 ' : ''}${label}</button>`;
+  }).join('');
+}
+
+function selectDate(d) {
+  selectedDate = d;
+  buildTabs();
+  renderDay(d);
+}
+
+function renderDay(dateISO) {
+  const patients = allPatients.filter(p => p.dateISO === dateISO);
+  const dt = new Date(dateISO + 'T00:00:00');
+
+  // Build hour grid 07–17
+  const MIN_H = 7, MAX_H = 17;
+  const occupiedHours = new Set();
+  for (const p of patients) {
+    const [h] = (p.timeStart || '07:00').split(':').map(Number);
+    for (let i = 0; i < (p.durationH || 1); i++) occupiedHours.add(h + i);
+  }
+
+  let html = '';
+  let h = MIN_H;
+  const patByHour = {};
+  for (const p of patients) {
+    const [ph] = (p.timeStart || '07:00').split(':').map(Number);
+    patByHour[ph] = p;
+  }
+
+  // Show all occupied hours + 2 empty slots at end
+  const allHours = new Set([...Object.keys(patByHour).map(Number)]);
+  const maxH = Math.max(MAX_H, ...[...allHours].map(n => n + 1)) + 1;
+
+  for (let hour = MIN_H; hour <= maxH; hour++) {
+    const p = patByHour[hour];
+    const timeStr = `${String(hour).padStart(2,'0')}:00`;
+
+    if (p) {
+      const icon = STATUS_ICON[p.statusClass] || '🔵';
+      html += `<div class="slot ${p.statusClass}" onclick="openDialog(${p.rowNum})">
+        <span class="slot-time">${timeStr}</span>
+        <div class="slot-body">
+          <span class="slot-name">${esc(p.name)}</span>
+          <span class="slot-status-icon">${icon}</span>
+          <span class="slot-meta">${p.duration}${p.fileNo ? ' · #' + esc(p.fileNo) : ''}</span>
+        </div>
+      </div>`;
+      // skip spanned hours
+      if (p.durationH > 1) {
+        for (let s = 1; s < p.durationH; s++) {
+          hour++;
+          const spanTime = `${String(hour).padStart(2,'0')}:00`;
+          html += `<div class="slot empty">
+            <span class="slot-time">${spanTime}</span>
+            <span class="slot-available">↕ ${esc(p.name)}</span>
+          </div>`;
+        }
+      }
+    } else {
+      html += `<div class="slot empty">
+        <span class="slot-time">${timeStr}</span>
+        <span class="slot-available">⬜ متاح</span>
+      </div>`;
+    }
+  }
+
+  document.getElementById('schedule').innerHTML = html || '<div class="no-data">لا يوجد مرضى</div>';
+
+  // Stats
+  const total = patients.length;
+  const confirmed = patients.filter(p => p.statusClass === 'confirmed').length;
+  const wl        = patients.filter(p => p.statusClass === 'wl').length;
+  const pd        = patients.filter(p => p.statusClass === 'pd').length;
+  const cancelled = patients.filter(p => p.statusClass === 'cancelled').length;
+
+  const statsBar = document.getElementById('statsBar');
+  statsBar.style.display = 'block';
+  statsBar.innerHTML = `<span>📊 ${total} مريض</span>` +
+    (confirmed ? `<span>✅ ${confirmed}</span>` : '') +
+    (wl        ? `<span>⏳ ${wl}</span>` : '') +
+    (pd        ? `<span>⚠️ ${pd}</span>` : '') +
+    (cancelled ? `<span>❌ ${cancelled}</span>` : '');
+
+  const footer = document.getElementById('dayFooter');
+  footer.style.display = patients.length > 0 ? 'flex' : 'none';
+}
+
+function openDialog(rowNum) {
+  const p = allPatients.find(x => x.rowNum === rowNum);
+  if (!p) return;
+  selectedPatient = p;
+  const dt = new Date(p.dateISO + 'T00:00:00');
+  document.getElementById('dialogDate').textContent =
+    `${AR_DAYS[dt.getDay()]}، ${dt.getDate()} ${AR_MONTHS[dt.getMonth()]}`;
+  document.getElementById('dialogName').textContent =
+    `${p.fullName || p.name}${p.fileNo ? ' · #' + p.fileNo : ''}`;
+  document.getElementById('dialogOverlay').classList.add('visible');
+}
+
+function closeDialog(e) {
+  if (!e || e.target === document.getElementById('dialogOverlay')) {
+    document.getElementById('dialogOverlay').classList.remove('visible');
+    selectedPatient = null;
+  }
+}
+
+async function setStatus(status) {
+  if (!selectedPatient) return;
+  document.getElementById('dialogOverlay').classList.remove('visible');
+  const p = selectedPatient;
+  selectedPatient = null;
+
+  try {
+    const res = await apiFetch('/api/update', {
+      method: 'POST',
+      body: JSON.stringify({ rowNum: p.rowNum, status }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      await loadData();
+      if (tg) tg.HapticFeedback?.notificationOccurred('success');
+    } else {
+      alert('خطأ: ' + (data.error || 'فشل التحديث'));
+    }
+  } catch (e) {
+    alert('خطأ في الاتصال: ' + e.message);
+  }
+}
+
+async function confirmAll() {
+  const patients = allPatients.filter(p => p.dateISO === selectedDate && p.statusClass !== 'confirmed');
+  if (patients.length === 0) { alert('جميع المرضى مؤكدون'); return; }
+  for (const p of patients) {
+    await apiFetch('/api/update', {
+      method: 'POST',
+      body: JSON.stringify({ rowNum: p.rowNum, status: 'Confirmed' }),
+    });
+  }
+  await loadData();
+  if (tg) tg.HapticFeedback?.notificationOccurred('success');
+}
+
+async function cancelDay() {
+  const patients = allPatients.filter(p => p.dateISO === selectedDate && p.statusClass !== 'cancelled');
+  if (patients.length === 0) { alert('لا يوجد مرضى لإلغائهم'); return; }
+  if (!confirm('تأكيد إلغاء جميع مرضى هذا اليوم؟')) return;
+  for (const p of patients) {
+    await apiFetch('/api/update', {
+      method: 'POST',
+      body: JSON.stringify({ rowNum: p.rowNum, status: 'Cancelled' }),
+    });
+  }
+  await loadData();
+}
+
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// Apply Telegram theme if available
+if (tg?.themeParams) {
+  const tp = tg.themeParams;
+  if (tp.bg_color)        document.documentElement.style.setProperty('--bg',      tp.bg_color);
+  if (tp.secondary_bg_color) document.documentElement.style.setProperty('--surface', tp.secondary_bg_color);
+  if (tp.text_color)      document.documentElement.style.setProperty('--text',    tp.text_color);
+  if (tp.hint_color)      document.documentElement.style.setProperty('--subtext', tp.hint_color);
+  if (tp.link_color)      document.documentElement.style.setProperty('--accent',  tp.link_color);
+}
+
+loadData();
+</script>
+</body>
+</html>
