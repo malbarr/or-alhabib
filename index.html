@@ -423,20 +423,21 @@ function parseTime(t) {
   return { h: 7, m: 0 };
 }
 
-// ── Google Calendar sync ──────────────────────────────────────────
+// ── Full sync (Calendar + Excel + Telegram) ───────────────────────
 async function refreshGCal() {
   const btn = document.getElementById('gcalBtn');
   btn.disabled = true;
-  btn.textContent = '⏳ Syncing…';
+  btn.textContent = '⏳ مزامنة…';
   try {
-    const res = await apiFetch('/api/gcal-refresh', { method: 'POST' });
+    const res = await apiFetch('/api/sync-all', { method: 'POST' });
     const data = await res.json().catch(() => ({}));
-    btn.textContent = data.slots != null ? `✅ ${data.slots} days` : '✅ Done';
-    setTimeout(() => { btn.textContent = '🔄 Calendar'; btn.disabled = false; }, 3000);
+    const label = data.gcal ? `✅ ${data.gcal}` : '✅ تم';
+    btn.textContent = label;
+    setTimeout(() => { btn.textContent = '🔄 مزامنة'; btn.disabled = false; }, 4000);
     await loadData();
   } catch (e) {
-    btn.textContent = '❌ Failed';
-    setTimeout(() => { btn.textContent = '🔄 Calendar'; btn.disabled = false; }, 3000);
+    btn.textContent = '❌ فشل';
+    setTimeout(() => { btn.textContent = '🔄 مزامنة'; btn.disabled = false; }, 3000);
   }
 }
 
