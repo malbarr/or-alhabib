@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>تتبّع حالة عمليتك — مستشفى الحبيب</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+    background: #f0f4f8;
+    min-height: 100vh;
+    padding-bottom: 100px;
+  }
+
+  .header {
+    background: linear-gradient(135deg, #1a5276, #2980b9);
+    color: white;
+    padding: 20px 16px 28px;
+  }
+  .header .hospital-logo { font-size: 13px; opacity: 0.8; margin-bottom: 8px; }
+  .header h1 { font-size: 22px; font-weight: 700; }
+  .header .sub { font-size: 14px; opacity: 0.85; margin-top: 6px; }
+
+  /* Search Form */
+  .search-card {
+    background: white;
+    margin: -18px 16px 0;
+    border-radius: 16px;
+    padding: 24px 20px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  }
+  .search-card h2 { font-size: 16px; font-weight: 700; color: #2c3e50; margin-bottom: 6px; }
+  .search-card p { font-size: 13px; color: #888; margin-bottom: 20px; line-height: 1.5; }
+
+  .field { margin-bottom: 16px; }
+  .field label { display: block; font-size: 13px; font-weight: 600; color: #555; margin-bottom: 6px; }
+  .field input {
+    width: 100%;
+    padding: 14px 16px;
+    border: 2px solid #e8ecf0;
+    border-radius: 12px;
+    font-size: 17px;
+    font-family: inherit;
+    direction: ltr;
+    text-align: center;
+    letter-spacing: 2px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .field input:focus { border-color: #2980b9; }
+  .field input::placeholder { letter-spacing: 0; font-size: 14px; color: #bbb; }
+
+  .search-btn {
+    width: 100%;
+    padding: 16px;
+    background: linear-gradient(135deg, #2980b9, #1a5276);
+    color: white;
+    border: none;
+    border-radius: 30px;
+    font-size: 16px;
+    font-weight: 800;
+    cursor: pointer;
+    margin-top: 8px;
+    transition: transform 0.1s;
+  }
+  .search-btn:active { transform: scale(0.98); }
+  .search-btn:disabled { opacity: 0.6; }
+
+  .error-msg {
+    background: #fdf2f8;
+    border: 1.5px solid #e74c3c;
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin-top: 14px;
+    font-size: 14px;
+    color: #c0392b;
+    text-align: center;
+    display: none;
+  }
+  .error-msg.show { display: block; }
+
+  /* ─── Patient Result ─── */
+  .result-section { display: none; }
+
+  .progress-card {
+    background: white;
+    margin: 12px 16px 0;
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  }
+  .progress-label { font-size: 12px; color: #888; margin-bottom: 12px; font-weight: 600; letter-spacing: 0.5px; }
+  .steps-track { display: flex; align-items: center; margin-bottom: 16px; }
+  .step-dot {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700;
+    flex-shrink: 0; position: relative; z-index: 1;
+  }
+  .step-dot.done { background: #27ae60; color: white; }
+  .step-dot.active {
+    background: #e67e22; color: white;
+    box-shadow: 0 0 0 4px rgba(230,126,34,0.2);
+    animation: pulse 2s infinite;
+  }
+  .step-dot.pending { background: #ecf0f1; color: #bbb; }
+  .step-line { flex: 1; height: 3px; margin: 0 4px; }
+  .step-line.done { background: #27ae60; }
+  .step-line.pending { background: #ecf0f1; }
+  .step-names { display: flex; justify-content: space-between; font-size: 10px; color: #888; }
+  .step-names span { width: 32px; text-align: center; }
+
+  .current-status {
+    background: #fff8f0;
+    border: 1.5px solid #f39c12;
+    border-radius: 10px;
+    padding: 12px;
+    margin-top: 16px;
+  }
+  .current-status .status-icon { font-size: 20px; }
+  .current-status .status-text { font-size: 15px; font-weight: 700; color: #d35400; margin-bottom: 4px; }
+  .current-status .status-sub { font-size: 12px; color: #888; }
+
+  .card {
+    background: white;
+    margin: 12px 16px 0;
+    border-radius: 14px;
+    padding: 18px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+  }
+  .card-title {
+    font-size: 12px; font-weight: 700; color: #888;
+    letter-spacing: 0.5px; margin-bottom: 14px; text-transform: uppercase;
+  }
+
+  .insurance-status { display: flex; align-items: center; gap: 12px; }
+  .ins-icon {
+    width: 44px; height: 44px;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; flex-shrink: 0;
+  }
+  .ins-icon.approved { background: #eafaf1; }
+  .ins-icon.pending { background: #fef9e7; }
+  .ins-icon.rejected { background: #fdf2f8; }
+  .ins-text .ins-label { font-size: 15px; font-weight: 700; color: #2c3e50; }
+  .ins-text .ins-sub { font-size: 12px; color: #95a5a6; margin-top: 2px; }
+
+  .cta-card {
+    margin: 12px 16px 0;
+    background: linear-gradient(135deg, #27ae60, #1e8449);
+    border-radius: 14px;
+    padding: 18px;
+    color: white;
+    box-shadow: 0 4px 15px rgba(39,174,96,0.3);
+  }
+  .cta-card .cta-title { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+  .cta-card .cta-sub { font-size: 12px; opacity: 0.85; margin-bottom: 14px; }
+  .call-btn {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    background: white; color: #1e8449; border: none;
+    border-radius: 30px; padding: 14px;
+    font-size: 16px; font-weight: 800; width: 100%;
+    cursor: pointer; text-decoration: none; transition: transform 0.1s;
+  }
+  .call-btn:active { transform: scale(0.97); }
+
+  .search-again-btn {
+    display: block;
+    width: calc(100% - 32px);
+    margin: 12px 16px 0;
+    padding: 14px;
+    background: white;
+    border: 2px solid #2980b9;
+    border-radius: 30px;
+    font-size: 15px;
+    font-weight: 700;
+    color: #2980b9;
+    cursor: pointer;
+    text-align: center;
+    transition: transform 0.1s;
+  }
+  .search-again-btn:active { transform: scale(0.98); }
+
+  .footer { text-align: center; padding: 24px; font-size: 12px; color: #aaa; }
+
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(230,126,34,0.4); }
+    70% { box-shadow: 0 0 0 8px rgba(230,126,34,0); }
+    100% { box-shadow: 0 0 0 0 rgba(230,126,34,0); }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="hospital-logo">🏥 مستشفى الحبيب — قسم العمليات</div>
+  <h1>تتبّع حالة عمليتك</h1>
+  <div class="sub">أدخل بياناتك لعرض وضعك الحالي</div>
+</div>
+
+<!-- Search Form -->
+<div id="search-section">
+  <div class="search-card">
+    <h2>استعلام عن الحالة</h2>
+    <p>أدخل رقم ملفك في المستشفى وآخر 4 أرقام من رقم جوالك المسجّل</p>
+
+    <div class="field">
+      <label>رقم الملف</label>
+      <input type="text" id="fileNo" placeholder="مثال: 123456" inputmode="text" autocomplete="off">
+    </div>
+
+    <div class="field">
+      <label>آخر 4 أرقام من جوالك</label>
+      <input type="text" id="phoneLast4" placeholder="مثال: 1234" inputmode="numeric" maxlength="4" autocomplete="off">
+    </div>
+
+    <button class="search-btn" id="search-btn" onclick="doSearch()">🔍 عرض حالتي</button>
+
+    <div class="error-msg" id="error-msg"></div>
+  </div>
+
+  <div class="footer">🔒 بياناتك محمية · د. محمد البار · مستشفى الحبيب</div>
+</div>
+
+<!-- Patient Result -->
+<div class="result-section" id="result-section">
+
+  <div class="progress-card">
+    <div class="progress-label">مراحل عمليتك</div>
+    <div class="steps-track">
+      <div class="step-dot done" id="s1">✓</div>
+      <div class="step-line done" id="l1"></div>
+      <div class="step-dot active" id="s2">2</div>
+      <div class="step-line pending" id="l2"></div>
+      <div class="step-dot pending" id="s3">3</div>
+      <div class="step-line pending" id="l3"></div>
+      <div class="step-dot pending" id="s4">4</div>
+    </div>
+    <div class="step-names">
+      <span>القرار</span>
+      <span>التأمين</span>
+      <span>الموعد</span>
+      <span>العملية</span>
+    </div>
+    <div class="current-status">
+      <div style="display:flex; align-items:center; gap:10px">
+        <span class="status-icon" id="status-icon">⏳</span>
+        <div>
+          <div class="status-text" id="status-text">بانتظار موافقة التأمين</div>
+          <div class="status-sub" id="status-sub">عادةً تستغرق 2-3 أيام عمل</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Insurance -->
+  <div class="card">
+    <div class="card-title">حالة التأمين</div>
+    <div class="insurance-status">
+      <div class="ins-icon pending" id="ins-icon">⏳</div>
+      <div class="ins-text">
+        <div class="ins-label" id="ins-label">قيد المراجعة</div>
+        <div class="ins-sub" id="ins-sub">تم إرسال الطلب — ننتظر رد شركة التأمين</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CTA -->
+  <div class="cta-card">
+    <div class="cta-title">تواصل مع المنسقة</div>
+    <div class="cta-sub">للاستفسار عن موعد عمليتك أو حالة التأمين</div>
+    <a class="call-btn" id="call-btn" href="tel:0555000000">
+      <span>📞</span>
+      <span id="coord-name">اتصل بالمنسقة</span>
+    </a>
+  </div>
+
+  <button class="search-again-btn" onclick="resetForm()">🔄 بحث جديد</button>
+
+  <div class="footer">🔒 بياناتك محمية · د. محمد البار · مستشفى الحبيب</div>
+</div>
+
+<script>
+const _params  = new URLSearchParams(location.search);
+const API_BASE = (_params.get('api') || '').replace(/\/$/, '');
+
+async function doSearch() {
+  const fileNo     = document.getElementById('fileNo').value.trim();
+  const phoneLast4 = document.getElementById('phoneLast4').value.trim();
+  const errEl      = document.getElementById('error-msg');
+  const btn        = document.getElementById('search-btn');
+
+  errEl.className = 'error-msg';
+
+  if (!fileNo) { showError('الرجاء إدخال رقم الملف'); return; }
+  if (!phoneLast4 || phoneLast4.length !== 4 || !/^\d{4}$/.test(phoneLast4)) {
+    showError('الرجاء إدخال آخر 4 أرقام من رقم جوالك بشكل صحيح');
+    return;
+  }
+
+  if (!API_BASE) {
+    showError('الخدمة غير متاحة حالياً — تواصل مع المنسقة مباشرة');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = '⏳ جاري البحث...';
+
+  try {
+    const res = await fetch(API_BASE + '/api/patient-verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Bypass-Tunnel-Reminder': '1' },
+      body: JSON.stringify({ fileNumber: fileNo, phoneLast4 }),
+    });
+    const data = await res.json();
+
+    if (!data.success) {
+      showError(data.message || 'البيانات غير صحيحة');
+    } else {
+      renderResult(data);
+    }
+  } catch(e) {
+    showError('تعذّر الوصول إلى الخادم — تحقق من اتصالك بالإنترنت');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🔍 عرض حالتي';
+  }
+}
+
+function showError(msg) {
+  const el = document.getElementById('error-msg');
+  el.textContent = msg;
+  el.className = 'error-msg show';
+}
+
+function renderResult(p) {
+  // Switch views
+  document.getElementById('search-section').style.display = 'none';
+  document.getElementById('result-section').style.display = 'block';
+
+  // Steps
+  const stepIds  = [null,'s1','s2','s3','s4'];
+  const lineIds  = [null,'l1','l2','l3'];
+  for (let i = 1; i <= 4; i++) {
+    const el = document.getElementById(stepIds[i]);
+    if (i < p.step)      { el.className = 'step-dot done';   el.textContent = '✓'; }
+    else if (i === p.step){ el.className = 'step-dot active'; el.textContent = i;   }
+    else                  { el.className = 'step-dot pending'; el.textContent = i;  }
+  }
+  for (let i = 1; i <= 3; i++) {
+    document.getElementById(lineIds[i]).className = 'step-line ' + (i < p.step ? 'done' : 'pending');
+  }
+
+  // Status
+  const statusMap = {
+    1: { icon:'✅', text:'تم اتخاذ قرار العملية',        sub:'جاري إرسال الطلب للتأمين' },
+    2: { icon:'⏳', text:'بانتظار موافقة التأمين',        sub:'تم إرسال الطلب — ننتظر الرد' },
+    3: { icon:'📅', text:'جاري تحديد الموعد',             sub:'تواصل مع المنسقة لتأكيد اليوم المناسب' },
+    4: { icon:'🎉', text:'الموعد مؤكد',                   sub:'يسعدنا خدمتك' },
+  };
+  const s = statusMap[p.step] || statusMap[2];
+  document.getElementById('status-icon').textContent = s.icon;
+  document.getElementById('status-text').textContent = s.text;
+  document.getElementById('status-sub').textContent  = s.sub;
+
+  // Insurance
+  const insMap = {
+    pending:  { icon:'⏳', cls:'pending',  label:'قيد المراجعة',    sub:'تم إرسال طلب التأمين' },
+    approved: { icon:'✅', cls:'approved', label:'موافقة مبدئية',   sub:'تم الحصول على الموافقة بنجاح' },
+    rejected: { icon:'❌', cls:'rejected', label:'مرفوضة',          sub:'يرجى التواصل مع المنسقة لمعرفة البديل' },
+  };
+  const ins = insMap[p.insurance] || insMap.pending;
+  const insIcon = document.getElementById('ins-icon');
+  insIcon.className = `ins-icon ${ins.cls}`;
+  insIcon.textContent = ins.icon;
+  document.getElementById('ins-label').textContent = ins.label;
+  document.getElementById('ins-sub').textContent   = ins.sub;
+
+  // Coordinator
+  const coord = p.coordinator || { name: 'المنسقة', phone: '0555000000' };
+  document.getElementById('coord-name').textContent = `اتصل بـ ${coord.name}`;
+  document.getElementById('call-btn').href = `tel:${coord.phone}`;
+}
+
+function resetForm() {
+  document.getElementById('result-section').style.display = 'none';
+  document.getElementById('search-section').style.display = 'block';
+  document.getElementById('fileNo').value = '';
+  document.getElementById('phoneLast4').value = '';
+  document.getElementById('error-msg').className = 'error-msg';
+}
+
+// Allow Enter key
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter') doSearch();
+});
+</script>
+</body>
+</html>
