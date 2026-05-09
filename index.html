@@ -1,1049 +1,781 @@
 <!DOCTYPE html>
-<html lang="en" dir="ltr">
+<html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>OR Schedule</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>جدول غرفة العمليات</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-:root {
-  --bg:         #0f0f0f;
-  --surface:    #1c1c1e;
-  --card:       #2c2c2e;
-  --border:     #3a3a3c;
-  --text:       #ffffff;
-  --subtext:    #8e8e93;
-  --confirmed:  #30d158;
-  --wl:         #ffd60a;
-  --pd:         #ff9f0a;
-  --cancelled:  #ff453a;
-  --tentative:  #636366;
-  --accent:     #0a84ff;
-  --radius:     10px;
-  --font:       -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Segoe UI', Tahoma, sans-serif;
+  background: #f0f2f5;
+  min-height: 100vh;
+  padding-bottom: 70px;
 }
-
-html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--font); }
-body { display: flex; flex-direction: column; overflow: hidden; }
 
 /* ── Header ── */
 .header {
-  padding: 12px 16px 8px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
+  background: linear-gradient(135deg, #1a237e, #283593);
+  color: white;
+  padding: 14px 16px 12px;
+  position: sticky; top: 0; z-index: 100;
+  box-shadow: 0 2px 10px rgba(0,0,0,.3);
+}
+.header h1 { font-size: 17px; font-weight: 700; }
+.header .sub { font-size: 12px; opacity: .75; margin-top: 2px; }
+
+/* Week nav */
+.week-nav {
   display: flex; align-items: center; justify-content: space-between;
-  flex-shrink: 0;
+  margin-top: 10px; gap: 8px;
 }
-.header h1 { font-size: 16px; font-weight: 700; }
-.refresh-btn { background: none; border: none; color: var(--accent); font-size: 20px; cursor: pointer; padding: 4px; line-height: 1; }
-.gcal-btn { background: none; border: 1px solid var(--accent); border-radius: 6px; color: var(--accent); font-size: 11px; cursor: pointer; padding: 3px 7px; line-height: 1.4; white-space: nowrap; }
-.gcal-btn:disabled { opacity: 0.5; cursor: default; }
-
-/* ── Date tabs ── */
-.tabs-wrap {
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  overflow-x: auto; flex-shrink: 0;
-  scrollbar-width: none;
+.week-nav button {
+  background: rgba(255,255,255,.2); border: none; color: white;
+  width: 36px; height: 36px; border-radius: 50%; font-size: 18px;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: background .15s;
 }
-.tabs-wrap::-webkit-scrollbar { display: none; }
-.tabs { display: flex; padding: 8px 12px; gap: 8px; width: max-content; }
-.tab {
-  background: var(--card); border: 1px solid var(--border); border-radius: 20px;
-  color: var(--subtext); font-size: 13px; font-weight: 500; padding: 6px 14px;
-  cursor: pointer; white-space: nowrap; transition: all 0.15s; font-family: var(--font);
-  display: flex; flex-direction: column; align-items: center; gap: 2px;
+.week-nav button:active { background: rgba(255,255,255,.35); }
+.week-nav .week-label {
+  flex: 1; text-align: center; font-size: 13px; font-weight: 700;
 }
-.tab-slot { font-size: 10px; opacity: 0.7; font-weight: 400; line-height: 1; }
-.tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
-.tab.today  { border-color: var(--accent); color: var(--accent); }
-.tab.today.active { color: #fff; }
-.tab.drag-over { background: var(--accent); border-color: var(--accent); color: #fff; transform: scale(1.08); box-shadow: 0 0 0 3px rgba(10,132,255,0.4); }
-
-/* ── OR slot blocked zone on grid ── */
-.slot-blocked {
-  position: absolute; left: 48px; right: 0;
-  background: repeating-linear-gradient(45deg, rgba(255,69,58,0.08), rgba(255,69,58,0.08) 4px, transparent 4px, transparent 12px);
-  border-left: 3px solid rgba(255,69,58,0.3);
-  pointer-events: none; z-index: 0;
-}
-.slot-allowed {
-  position: absolute; left: 48px; right: 0;
-  background: rgba(48,209,88,0.04);
-  border-left: 3px solid rgba(48,209,88,0.3);
-  pointer-events: none; z-index: 0;
-}
-.drop-indicator.blocked { border-color: #ff453a; }
-.drop-indicator.blocked::after { background: #ff453a; }
-.drop-blocked-msg {
-  position: absolute; left: 50%; transform: translateX(-50%);
-  background: #ff453a; color: #fff; padding: 4px 10px;
-  border-radius: 8px; font-size: 12px; font-weight: 600;
-  pointer-events: none; z-index: 20; white-space: nowrap;
+.week-nav .today-btn {
+  background: rgba(255,255,255,.2); border: none; color: white;
+  padding: 5px 12px; border-radius: 14px; font-size: 12px; cursor: pointer;
 }
 
-/* ── Search bar ── */
-.search-wrap {
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  padding: 8px 12px;
-  flex-shrink: 0;
+/* ── Bottom Tabs ── */
+.bottom-tabs {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: white; border-top: 1px solid #e0e0e0;
+  display: flex; z-index: 200;
+  box-shadow: 0 -2px 10px rgba(0,0,0,.08);
 }
-.search-inner {
-  display: flex; align-items: center; gap: 8px;
-  background: var(--card); border-radius: 10px;
-  padding: 6px 10px;
+.tab-btn {
+  flex: 1; border: none; background: none; padding: 10px 4px 6px;
+  font-size: 10px; color: #999; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  transition: color .15s;
 }
-.search-icon { font-size: 14px; color: var(--subtext); flex-shrink: 0; }
-.search-input {
-  flex: 1; background: none; border: none; outline: none;
-  color: var(--text); font-size: 14px; font-family: var(--font);
-}
-.search-input::placeholder { color: var(--subtext); }
-.search-clear {
-  background: none; border: none; color: var(--subtext); font-size: 16px;
-  cursor: pointer; padding: 0 2px; line-height: 1; display: none;
+.tab-btn .tab-icon { font-size: 20px; }
+.tab-btn.active { color: #1a237e; }
+.tab-btn.active .tab-icon { transform: scale(1.1); }
+
+/* ── Views ── */
+.view { display: none; padding: 12px; }
+.view.active { display: block; }
+
+/* ── Schedule View ── */
+.day-card {
+  background: white;
+  border-radius: 16px;
+  margin-bottom: 10px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.06);
+  overflow: hidden;
 }
 
-/* Search result row */
-.search-result-date { font-size: 11px; color: var(--subtext); font-weight: 600; padding: 10px 16px 4px; }
-.search-result-card {
-  margin: 4px 12px; border-radius: var(--radius); padding: 10px 12px;
-  background: var(--card); border-left: 4px solid transparent; cursor: pointer;
-  display: flex; flex-direction: column; gap: 3px;
-}
-.search-result-card.confirmed { border-left-color: var(--confirmed); }
-.search-result-card.wl        { border-left-color: var(--wl); }
-.search-result-card.pd        { border-left-color: var(--pd); }
-.search-result-card.cancelled { border-left-color: var(--cancelled); opacity: 0.6; }
-.search-result-card.tentative { border-left-color: var(--tentative); }
-.search-result-card:active    { opacity: 0.75; }
-.sr-row1 { display: flex; align-items: center; gap: 6px; }
-.sr-name  { font-size: 14px; font-weight: 700; flex: 1; }
-.sr-row2  { display: flex; gap: 8px; font-size: 11px; color: var(--subtext); }
-.sr-no-results { text-align: center; padding: 32px; color: var(--subtext); font-size: 14px; }
-
-/* ── Calendar scroll area ── */
-.schedule { flex: 1; overflow-y: auto; overflow-x: hidden; }
-
-/* ── Calendar grid ── */
-.cal-grid {
-  position: relative;
-  padding-left: 44px;
-  padding-right: 8px;
-  padding-bottom: 20px;
-}
-
-/* Time lines */
-.time-row {
-  position: absolute; left: 0; right: 0; pointer-events: none;
-}
-.time-label {
-  position: absolute; left: 4px; font-size: 10px; color: var(--subtext);
-  transform: translateY(-50%); font-variant-numeric: tabular-nums;
-}
-.time-line {
-  position: absolute; left: 44px; right: 8px; border-top: 1px solid var(--border);
-}
-.time-line.half { border-top-color: rgba(58,58,60,0.4); border-top-style: dashed; }
-
-/* Patient cards (absolute positioned) */
-.patient-card {
-  position: absolute; left: 44px; right: 8px;
-  border-radius: var(--radius); overflow: hidden;
+.day-header {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px;
   cursor: pointer;
-  border-left: 4px solid transparent;
-  padding: 7px 8px 6px;
-  transition: opacity 0.15s, box-shadow 0.15s;
-  background: var(--card);
-  user-select: none; -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: rgba(0,0,0,.05);
 }
-.patient-card.confirmed { border-left-color: var(--confirmed); }
-.patient-card.wl        { border-left-color: var(--wl); }
-.patient-card.pd        { border-left-color: var(--pd); }
-.patient-card.cancelled { border-left-color: var(--cancelled); opacity: 0.55; }
-.patient-card.tentative { border-left-color: var(--tentative); }
-.patient-card:active    { opacity: 0.75; }
-.patient-card.drag-src  { opacity: 0.25; pointer-events: none; }
+.day-header:active { background: #f8f9fa; }
 
-/* Card rows */
-.slot-row1 { display: flex; align-items: center; gap: 6px; }
-.slot-time  { font-size: 11px; font-weight: 600; color: var(--subtext); min-width: 32px; font-variant-numeric: tabular-nums; flex-shrink: 0; }
-.slot-name  { font-size: 13px; font-weight: 700; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.slot-badges { display: flex; gap: 3px; flex-shrink: 0; align-items: center; }
-.badge {
-  font-size: 9px; font-weight: 700; padding: 2px 5px; border-radius: 5px;
-  white-space: nowrap; line-height: 1.4;
+.day-icon {
+  width: 50px; height: 50px; border-radius: 14px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  flex-shrink: 0; font-weight: 800;
 }
-.badge-approved    { background: rgba(48,209,88,0.18);  color: var(--confirmed); }
-.badge-notapproved { background: rgba(255,69,58,0.18);  color: var(--cancelled); }
-.badge-confirmed   { background: rgba(48,209,88,0.18);  color: var(--confirmed); }
-.badge-wl          { background: rgba(255,214,10,0.18); color: var(--wl); }
-.badge-pd          { background: rgba(255,159,10,0.18); color: var(--pd); }
-.badge-cancelled   { background: rgba(255,69,58,0.18);  color: var(--cancelled); }
-.badge-tentative   { background: rgba(99,99,102,0.25);  color: var(--subtext); }
+.day-icon .day-num { font-size: 20px; line-height: 1; }
+.day-icon .day-month { font-size: 10px; opacity: .75; }
 
-.slot-row2 { display: flex; align-items: center; gap: 4px; margin-top: 2px; padding-left: 38px; }
-.slot-proc { font-size: 11px; color: var(--subtext); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.slot-dur  { font-size: 10px; color: var(--subtext); flex-shrink: 0; }
+.day-info { flex: 1; min-width: 0; }
+.day-name { font-size: 15px; font-weight: 700; color: #1a1a2e; }
+.day-count { font-size: 12px; color: #888; margin-top: 2px; }
 
-.slot-row3 { display: flex; align-items: center; gap: 6px; margin-top: 1px; padding-left: 38px; }
-.slot-file  { font-size: 10px; color: var(--subtext); }
-.slot-phone { font-size: 10px; color: var(--subtext); }
-
-/* Topic quick button on card */
-.topic-btn {
-  position: absolute; bottom: 5px; right: 6px;
-  background: rgba(10,132,255,0.15); border: none; border-radius: 6px;
-  color: var(--accent); font-size: 12px; padding: 2px 6px;
-  cursor: pointer; line-height: 1.4;
+/* Hours bar */
+.hours-bar-wrap { margin-top: 6px; }
+.hours-blocks {
+  display: flex; gap: 3px; flex-wrap: wrap;
 }
-.topic-btn:active { opacity: 0.7; }
-
-/* Approval toggle button on card */
-.approve-toggle {
-  font-size: 13px; background: none; border: 1px solid var(--border);
-  border-radius: 6px; padding: 1px 5px; cursor: pointer; line-height: 1.4;
-  flex-shrink: 0; transition: background 0.15s;
+.hour-block {
+  width: 18px; height: 10px; border-radius: 3px;
+  transition: background .2s;
 }
-.approve-toggle:active { opacity: 0.6; }
-.approve-toggle.approved     { background: rgba(48,209,88,0.2);  border-color: rgba(48,209,88,0.5); }
-.approve-toggle.not-approved { background: rgba(255,69,58,0.2);  border-color: rgba(255,69,58,0.5); }
-.approve-toggle.unknown      { background: rgba(99,99,102,0.12); }
+.hour-block.used   { background: #1a237e; }
+.hour-block.empty  { background: #e0e4f0; }
+.hours-text { font-size: 11px; color: #888; margin-top: 4px; }
 
-/* Dialog approval buttons */
-.opt-approved    { background: rgba(48,209,88,0.2);  color: var(--confirmed); border: 1px solid rgba(48,209,88,0.4); }
-.opt-notapproved { background: rgba(255,69,58,0.2);  color: var(--cancelled); border: 1px solid rgba(255,69,58,0.4); }
-.dialog-section-label { font-size: 11px; color: var(--subtext); text-align: center; margin: 6px 0 4px; }
-
-/* Drag ghost */
-.drag-ghost {
-  position: fixed; z-index: 9999; pointer-events: none;
-  border-radius: var(--radius); overflow: hidden;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.7);
-  opacity: 0.92; border-left: 4px solid var(--accent);
-  background: var(--card); padding: 7px 8px 6px;
-  transition: none;
+/* Status badge */
+.status-badge {
+  font-size: 11px; font-weight: 700; padding: 4px 10px;
+  border-radius: 20px; flex-shrink: 0; white-space: nowrap;
 }
+.badge-full    { background: #ffebee; color: #c62828; }
+.badge-busy    { background: #fff3e0; color: #e65100; }
+.badge-ok      { background: #e8f5e9; color: #2e7d32; }
+.badge-empty   { background: #f5f5f5; color: #999; }
 
-/* Drop time indicator */
-.drop-indicator {
-  position: absolute; left: 44px; right: 8px;
-  height: 3px; background: var(--accent); border-radius: 2px;
-  pointer-events: none; z-index: 10;
+/* Day patients list */
+.day-patients { display: none; border-top: 1px solid #f0f0f0; }
+.day-patients.open { display: block; }
+
+.sched-patient {
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 16px;
+  border-bottom: 1px solid #fafafa;
 }
-.drop-indicator::before {
-  content: attr(data-time);
-  position: absolute; left: -40px; top: -8px;
-  font-size: 10px; color: var(--accent); font-weight: 700;
-  font-variant-numeric: tabular-nums;
+.sched-patient:last-child { border-bottom: none; }
+
+.sched-time {
+  font-size: 12px; font-weight: 700; color: #1a237e;
+  width: 44px; flex-shrink: 0; text-align: center;
+}
+.sched-dur {
+  width: 30px; height: 30px; border-radius: 8px;
+  background: #e8eaf6; color: #1a237e;
+  font-size: 11px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.sched-info { flex: 1; min-width: 0; }
+.sched-name { font-size: 14px; font-weight: 600; color: #1a1a2e; }
+.sched-proc { font-size: 11px; color: #888; margin-top: 1px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sched-status {
+  font-size: 10px; font-weight: 700; padding: 3px 8px;
+  border-radius: 12px; flex-shrink: 0;
+}
+.sched-status.confirmed  { background: #e8f5e9; color: #2e7d32; }
+.sched-status.tentative  { background: #fff3e0; color: #e65100; }
+.sched-status.approved   { background: #e3f2fd; color: #1565c0; }
+
+/* Today marker */
+.today-marker {
+  background: linear-gradient(90deg,#1a237e,#3949ab);
+  color: white; text-align: center; font-size: 11px; font-weight: 700;
+  padding: 4px; letter-spacing: .5px;
 }
 
-/* ── Day footer ── */
-.day-footer {
-  padding: 8px 12px; background: var(--bg);
-  border-top: 1px solid var(--border);
-  display: flex; gap: 8px; flex-shrink: 0;
-}
-.day-footer button {
-  flex: 1; padding: 10px; border-radius: var(--radius); border: none;
-  font-size: 13px; font-weight: 600; cursor: pointer; font-family: var(--font);
-}
-.btn-confirm-all { background: var(--confirmed); color: #000; }
-.btn-cancel-day  { background: var(--cancelled); color: #fff; }
+/* Empty day */
+.empty-day { text-align: center; padding: 30px; color: #bbb; font-size: 13px; }
 
-/* ── Stats bar ── */
-.stats-bar {
-  padding: 6px 16px; background: var(--surface);
-  border-top: 1px solid var(--border);
-  font-size: 11px; color: var(--subtext); text-align: center; flex-shrink: 0;
+/* Summary strip */
+.week-summary {
+  background: white; border-radius: 14px; padding: 14px 16px;
+  margin-bottom: 10px; box-shadow: 0 2px 8px rgba(0,0,0,.06);
+  display: flex; gap: 0;
 }
-.stats-bar span { margin: 0 4px; }
+.summary-item {
+  flex: 1; text-align: center; position: relative;
+}
+.summary-item:not(:last-child)::after {
+  content: ''; position: absolute; left: 0; top: 15%; bottom: 15%;
+  width: 1px; background: #eee;
+}
+.summary-num { font-size: 22px; font-weight: 800; color: #1a237e; }
+.summary-label { font-size: 10px; color: #999; margin-top: 2px; }
 
-/* ── Bottom sheet dialog ── */
-.dialog-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.7);
-  display: flex; align-items: flex-end; z-index: 100;
-  opacity: 0; pointer-events: none; transition: opacity 0.2s;
+/* ── Patients View (tab 2) ── */
+.filter-row {
+  display: flex; gap: 8px; margin-bottom: 12px;
 }
-.dialog-overlay.visible { opacity: 1; pointer-events: auto; }
-.dialog {
-  background: var(--surface); border-radius: 16px 16px 0 0;
-  padding: 20px 16px 32px; width: 100%;
-  transform: translateY(100%);
-  transition: transform 0.25s cubic-bezier(0.32,0,0,1);
+.filter-btn {
+  flex: 1; border: none; border-radius: 20px;
+  padding: 8px 0; font-size: 13px; font-weight: 700;
+  cursor: pointer; transition: all .2s;
+  background: #e0e4f0; color: #1a237e;
 }
-.dialog-overlay.visible .dialog { transform: translateY(0); }
-.dialog-header { text-align: center; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
-.dialog-name   { font-size: 17px; font-weight: 700; margin-bottom: 6px; }
-.dialog-meta   { font-size: 13px; color: var(--subtext); margin-bottom: 6px; }
-.dialog-badges { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; }
-.dialog-options { display: grid; gap: 8px; margin-bottom: 10px; }
-.dialog-opt {
-  padding: 13px; border-radius: var(--radius); border: none;
-  font-size: 15px; font-weight: 600; cursor: pointer; font-family: var(--font);
-  display: flex; align-items: center; justify-content: center; gap: 8px;
-}
-.dialog-opt:active { opacity: 0.75; }
-.opt-confirmed { background: var(--confirmed); color: #000; }
-.opt-wl        { background: var(--wl); color: #000; }
-.opt-pd        { background: var(--pd); color: #000; }
-.opt-cancelled { background: var(--cancelled); color: #fff; }
-.opt-topic     { background: var(--accent); color: #fff; }
-.opt-cancel    { background: var(--card); color: var(--text); }
+.filter-btn.active { background: #1a237e; color: white; }
 
-/* ── Loading / empty ── */
-.loading { flex: 1; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 12px; color: var(--subtext); }
-.spinner { width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+.patient-card {
+  background: white;
+  border-radius: 16px;
+  margin-bottom: 10px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.07);
+  overflow: hidden;
+}
+.card-header {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: rgba(0,0,0,.05);
+}
+.card-header:active { background: #f8f9fa; }
+
+.status-circle {
+  width: 48px; height: 48px; border-radius: 50%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  flex-shrink: 0; font-weight: 800;
+}
+.status-circle.pd { background: #fff3e0; color: #e65100; }
+.status-circle.wl { background: #e8f5e9; color: #2e7d32; }
+.status-circle.other { background: #f3e5f5; color: #6a1b9a; }
+.status-circle .big { font-size: 16px; }
+
+.card-info { flex: 1; min-width: 0; }
+.card-name { font-size: 16px; font-weight: 700; color: #1a1a2e;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card-proc { font-size: 12px; color: #777; margin-top: 2px; }
+.card-days { font-size: 11px; margin-top: 4px; }
+.card-days.urgent { color: #c62828; font-weight: 700; }
+.card-days.warn   { color: #e65100; font-weight: 600; }
+.card-days.ok     { color: #2e7d32; }
+
+.progress-pill { display: flex; flex-direction: column; align-items: center; gap: 2px; flex-shrink: 0; }
+.progress-ring { width: 40px; height: 40px; transform: rotate(-90deg); }
+.progress-ring-bg   { fill: none; stroke: #e9ecef; stroke-width: 4; }
+.progress-ring-fill { fill: none; stroke-width: 4; stroke-linecap: round; transition: stroke-dashoffset .4s; }
+.progress-label { font-size: 10px; color: #888; }
+
+.checklist-panel { display: none; border-top: 1px solid #f0f0f0; padding: 0 16px 16px; }
+.checklist-panel.open { display: block; }
+.cl-section-title {
+  font-size: 11px; font-weight: 700; color: #888;
+  letter-spacing: .5px; padding: 14px 0 8px; text-transform: uppercase;
+}
+.cl-item {
+  display: flex; align-items: center; gap: 14px;
+  padding: 13px 12px; border-radius: 12px; margin-bottom: 6px;
+  cursor: pointer; transition: background .15s;
+  -webkit-tap-highlight-color: transparent; background: #f8f9fa;
+}
+.cl-item:active { background: #e9ecef; }
+.cl-item.checked { background: #e8f5e9; }
+.cl-check {
+  width: 28px; height: 28px; border-radius: 50%;
+  border: 2.5px solid #ccc;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: all .2s; font-size: 14px;
+}
+.cl-item.checked .cl-check { border-color: #2e7d32; background: #2e7d32; color: white; }
+.cl-label { font-size: 15px; color: #2c3e50; flex: 1; line-height: 1.3; }
+.cl-item.checked .cl-label { text-decoration: line-through; color: #999; }
+
+.actions-row { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+.action-btn {
+  flex: 1; min-width: 80px;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  border: none; border-radius: 12px; padding: 12px 8px;
+  font-size: 13px; font-weight: 700; cursor: pointer; transition: all .15s;
+  text-decoration: none;
+}
+.action-btn:active { transform: scale(.96); }
+.action-btn.call { background: #e8f5e9; color: #2e7d32; }
+.action-btn.wa   { background: #e3f2fd; color: #1565c0; }
+.action-btn.tg   { background: #f3e5f5; color: #6a1b9a; }
+.action-btn.send { background: #fff3e0; color: #e65100; }
+
+/* ── Contacts (tab 3) ── */
+.contacts-list { display: flex; flex-direction: column; gap: 10px; }
+.contact-card {
+  background: white; border-radius: 14px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.06);
+  overflow: hidden;
+}
+.contact-group-title {
+  font-size: 11px; font-weight: 700; color: #888;
+  letter-spacing: .5px; text-transform: uppercase;
+  padding: 12px 16px 6px;
+}
+.contact-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 16px; text-decoration: none; color: #1a1a2e;
+  border-top: 1px solid #f8f9fa; transition: background .15s;
+}
+.contact-item:first-of-type { border-top: none; }
+.contact-item:active { background: #f0f4ff; }
+.contact-icon { font-size: 20px; width: 36px; text-align: center; flex-shrink: 0; }
+.contact-label { font-size: 14px; font-weight: 700; }
+.contact-desc { font-size: 11px; color: #888; margin-top: 1px; }
+.contact-wa-badge {
+  margin-right: auto; background: #e3f2fd; color: #1565c0;
+  font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 10px;
+}
+
+/* ── Loader / Toast ── */
+.loader {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  height: 200px; gap: 12px; color: #999; font-size: 14px;
+}
+.spinner {
+  width: 36px; height: 36px;
+  border: 3px solid #e0e0e0; border-top-color: #1a237e;
+  border-radius: 50%; animation: spin .8s linear infinite;
+}
 @keyframes spin { to { transform: rotate(360deg); } }
-.no-data { text-align: center; padding: 32px; color: var(--subtext); font-size: 14px; }
+
+.empty-state { text-align: center; padding: 60px 20px; color: #bbb; font-size: 15px; }
+
+.toast {
+  position: fixed; bottom: 76px; left: 50%; transform: translateX(-50%);
+  background: #2c3e50; color: white; padding: 10px 22px;
+  border-radius: 30px; font-size: 14px; opacity: 0;
+  transition: opacity .3s; z-index: 999; white-space: nowrap;
+}
+.toast.show { opacity: 1; }
 </style>
 </head>
 <body>
 
 <div class="header">
-  <h1>🏥 OR Schedule</h1>
-  <div style="display:flex;align-items:center;gap:6px">
-    <span id="syncBadge" style="font-size:10px;color:var(--subtext);display:none"></span>
-    <button class="gcal-btn" id="gcalBtn" onclick="refreshGCal()" title="مزامنة كاملة: تقويم + إكسيل + تيليغرام">🔄 مزامنة</button>
-    <button class="refresh-btn" onclick="loadData()" title="Refresh schedule">↻</button>
+  <h1>🏥 غرفة العمليات — الحبيب</h1>
+  <div class="sub" id="header-sub">جاري التحميل...</div>
+  <div class="week-nav" id="week-nav-bar">
+    <button onclick="shiftWeek(-1)">‹</button>
+    <span class="week-label" id="week-label">—</span>
+    <button onclick="shiftWeek(1)">›</button>
+    <button class="today-btn" onclick="goToday()">اليوم</button>
   </div>
 </div>
 
-<div class="tabs-wrap">
-  <div class="tabs" id="tabs"></div>
-</div>
-
-<div class="search-wrap" id="searchWrap">
-  <div class="search-inner">
-    <span class="search-icon">🔍</span>
-    <input class="search-input" id="searchInput" type="search" placeholder="Search by name or file number…" oninput="onSearch(this.value)">
-    <button class="search-clear" id="searchClear" onclick="clearSearch()">✕</button>
+<!-- Views -->
+<div class="view active" id="view-schedule"></div>
+<div class="view" id="view-patients">
+  <div class="filter-row">
+    <button class="filter-btn active" data-filter="all">الكل</button>
+    <button class="filter-btn" data-filter="PD">PD — انتظار</button>
+    <button class="filter-btn" data-filter="WL">WL — قائمة</button>
   </div>
+  <div id="patients-list"><div class="loader"><div class="spinner"></div>جاري التحميل...</div></div>
 </div>
+<div class="view" id="view-contacts"></div>
 
-<div class="schedule" id="schedule">
-  <div class="loading"><div class="spinner"></div><span>Loading...</span></div>
-</div>
+<!-- Bottom tabs -->
+<nav class="bottom-tabs">
+  <button class="tab-btn active" data-tab="schedule" onclick="switchTab('schedule')">
+    <span class="tab-icon">📅</span>جدول
+  </button>
+  <button class="tab-btn" data-tab="patients" onclick="switchTab('patients')">
+    <span class="tab-icon">👥</span>مرضى
+  </button>
+  <button class="tab-btn" data-tab="contacts" onclick="switchTab('contacts')">
+    <span class="tab-icon">📞</span>أرقام
+  </button>
+</nav>
 
-<div class="day-footer" id="dayFooter" style="display:none">
-  <button class="btn-confirm-all" onclick="confirmAll()">✅ Confirm All</button>
-  <button class="btn-cancel-day"  onclick="cancelDay()">🔴 Cancel Day</button>
-</div>
-
-<div class="stats-bar" id="statsBar" style="display:none"></div>
-
-<!-- Status dialog -->
-<div class="dialog-overlay" id="dialogOverlay" onclick="closeDialog(event)">
-  <div class="dialog">
-    <div class="dialog-header">
-      <div class="dialog-name"   id="dialogName"></div>
-      <div class="dialog-meta"   id="dialogMeta"></div>
-      <div class="dialog-badges" id="dialogBadges"></div>
-    </div>
-    <div class="dialog-section-label">— Insurance Approval —</div>
-    <div class="dialog-options" style="grid-template-columns:1fr 1fr; display:grid; gap:8px; margin-bottom:10px;">
-      <button class="dialog-opt opt-approved"    onclick="setApproval('Approved')">✅ Approved</button>
-      <button class="dialog-opt opt-notapproved" onclick="setApproval('Not Approved')">❌ Not Approved</button>
-    </div>
-    <div class="dialog-section-label">— Schedule Status —</div>
-    <div class="dialog-options">
-      <button class="dialog-opt opt-confirmed" onclick="setStatus('Confirmed')">✅ Confirmed</button>
-      <button class="dialog-opt opt-wl"        onclick="setStatus('WL')">⏳ Waiting List (WL)</button>
-      <button class="dialog-opt opt-pd"        onclick="setStatus('PD')">⚠️ Pending Decision (PD)</button>
-      <button class="dialog-opt opt-cancelled" onclick="setStatus('Cancelled')">❌ Cancelled</button>
-    </div>
-    <div id="dialogTopicWrap" style="display:none; margin-bottom:8px;">
-      <button class="dialog-opt opt-topic" onclick="openTopic()">🔗 Open Telegram Topic</button>
-    </div>
-    <button class="dialog-opt opt-cancel" onclick="closeDialog()">Close</button>
-  </div>
-</div>
+<div class="toast" id="toast"></div>
 
 <script>
-const tg = window.Telegram?.WebApp;
-if (tg) { tg.ready(); tg.expand(); }
+// ── Config ────────────────────────────────────────────────────────────
+const _p       = new URLSearchParams(location.search);
+const API_BASE = (_p.get('api') || '').replace(/\/$/, '');
+const MAX_OR_HOURS = 8; // total OR hours per day
 
-const _params = new URLSearchParams(window.location.search);
-const API = (_params.get('api') || '').replace(/\/$/, '');
-const HEADERS = { 'Bypass-Tunnel-Reminder': 'true', 'Content-Type': 'application/json' };
-function apiFetch(path, opts = {}) {
-  return fetch(API + path, { ...opts, headers: { ...HEADERS, ...(opts.headers || {}) } });
+const DAY_AR = ['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+const MON_AR = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+
+// ── Checklist (for patients tab) ─────────────────────────────────────
+const CHECKLIST = [
+  { id: 'admission',  label: 'طلب الدخول (Admission Request)' },
+  { id: 'consent',    label: 'موافقة المريض (Consent)' },
+  { id: 'ct',         label: 'صور CT / فيديو' },
+  { id: 'ct_report',  label: 'تقرير الأشعة' },
+  { id: 'clinic',     label: 'تقرير العيادة (Clinic Notes)' },
+  { id: 'ins_sent',   label: 'إرسال طلب التأمين' },
+  { id: 'ins_reply',  label: 'رد التأمين' },
+  { id: 'date_conf',  label: 'تأكيد الموعد مع المريض' },
+];
+
+const STATE_KEY = 'or_coord_cl_v1';
+let clState = {};
+try { clState = JSON.parse(localStorage.getItem(STATE_KEY) || '{}'); } catch(e) {}
+function saveCL() { localStorage.setItem(STATE_KEY, JSON.stringify(clState)); }
+function getPS(fileNo) { if (!clState[fileNo]) clState[fileNo] = {}; return clState[fileNo]; }
+function toggleCheck(fileNo, itemId) { const ps = getPS(fileNo); ps[itemId] = !ps[itemId]; saveCL(); }
+function countDone(fileNo) { const ps = getPS(fileNo); return CHECKLIST.filter(i => ps[i.id]).length; }
+
+// ── Week offset ───────────────────────────────────────────────────────
+let weekOffset = 0;
+
+function getWeekStart(offset) {
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const day = now.getDay();
+  const diff = day === 0 ? 0 : (7 - day) % 7; // keep Sunday as start or go to next Sunday
+  const sun = new Date(now); sun.setDate(now.getDate() - day + offset * 7);
+  return sun;
 }
 
-const EN_DAYS   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-const EN_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function shiftWeek(d) { weekOffset += d; renderScheduleView(); }
+function goToday()    { weekOffset = 0;  renderScheduleView(); }
 
-let allPatients  = [];
-let selectedDate = null;
-let selectedPatient = null;
-let dates = [];
-let orSlots = []; // [{date, start, end}] — permitted OR windows
-
-const HOUR_PX = 80; // pixels per hour
-const MIN_H   = 7;
-
-function getSlotForDate(dateISO) {
-  return orSlots.find(s => s.date === dateISO) || null;
-}
-function timeToH(str) {
-  const [h, m] = (str || '07:00').split(':').map(Number);
-  return h + m / 60;
-}
-function isTimeAllowed(timeStr, dateISO) {
-  const slot = getSlotForDate(dateISO);
-  if (!slot) return true;
-  const h = timeToH(timeStr);
-  if (slot.windows && slot.windows.length > 0) {
-    return slot.windows.some(w => h >= timeToH(w.start) && h < timeToH(w.end));
+// ── Contacts data ─────────────────────────────────────────────────────
+const CONTACTS = [
+  {
+    group: 'مكتب العمليات — ثابت',
+    items: [
+      { icon: '📞', label: '0138711206', desc: 'خط مباشر ١', href: 'tel:0138711206', wa: false },
+      { icon: '📞', label: '0138711836', desc: 'خط مباشر ٢', href: 'tel:0138711836', wa: false },
+      { icon: '☎️', label: '0138711111 # 1206', desc: 'تحويلة ١', href: 'tel:0138711111', wa: false },
+      { icon: '☎️', label: '0138711111 # 1836', desc: 'تحويلة ٢', href: 'tel:0138711111', wa: false },
+    ]
+  },
+  {
+    group: 'جوال المنسقتَين',
+    items: [
+      { icon: '📱', label: '0557756821', desc: 'منسقة ١', href: 'tel:0557756821', wa: true, waNum: '966557756821' },
+      { icon: '📱', label: '0556689020', desc: 'منسقة ٢', href: 'tel:0556689020', wa: true, waNum: '966556689020' },
+    ]
   }
-  return h >= timeToH(slot.start) && h < timeToH(slot.end);
-}
-function slotLabel(slot) {
-  if (!slot) return '';
-  if (slot.windows && slot.windows.length > 1) return slot.windows.map(w => `${w.start}–${w.end}`).join(', ');
-  return `${slot.start}–${slot.end}`;
-}
-function slotAllowedText(slot) {
-  if (!slot) return '';
-  if (slot.windows && slot.windows.length > 1) return slot.windows.map(w => `${w.start}–${w.end}`).join(' / ');
-  return `${slot.start} – ${slot.end}`;
+];
+
+// ── Tab switching ─────────────────────────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + tab));
+  const weekNav = document.getElementById('week-nav-bar');
+  weekNav.style.display = tab === 'schedule' ? '' : 'none';
 }
 
-// ── Parse time string/object safely ──────────────────────────────
-function parseTime(t) {
-  if (!t) return { h: 7, m: 0 };
-  const s = String(t);
-  let match = s.match(/(\d{1,2}):(\d{2})/);
-  if (match) return { h: parseInt(match[1]), m: parseInt(match[2]) };
-  match = s.match(/T(\d{2}):(\d{2})/);
-  if (match) return { h: parseInt(match[1]), m: parseInt(match[2]) };
-  return { h: 7, m: 0 };
-}
+// ── Schedule View ─────────────────────────────────────────────────────
+let scheduleData = [];
 
-// ── Full sync (Calendar + Excel + Telegram) ───────────────────────
-async function refreshGCal() {
-  const btn = document.getElementById('gcalBtn');
-  btn.disabled = true;
-  btn.textContent = '⏳ مزامنة…';
-  try {
-    const res = await apiFetch('/api/sync-all', { method: 'POST' });
-    const data = await res.json().catch(() => ({}));
-    const label = data.gcal ? `✅ ${data.gcal}` : '✅ تم';
-    btn.textContent = label;
-    setTimeout(() => { btn.textContent = '🔄 مزامنة'; btn.disabled = false; }, 4000);
-    await loadData();
-  } catch (e) {
-    btn.textContent = '❌ فشل';
-    setTimeout(() => { btn.textContent = '🔄 مزامنة'; btn.disabled = false; }, 3000);
-  }
-}
+function renderScheduleView() {
+  const ws = getWeekStart(weekOffset);
+  const we = new Date(ws); we.setDate(ws.getDate() + 6);
 
-// ── Load data ─────────────────────────────────────────────────────
-async function loadData() {
-  document.getElementById('schedule').innerHTML =
-    '<div class="loading"><div class="spinner"></div><span>Loading...</span></div>';
-  document.getElementById('dayFooter').style.display = 'none';
-  document.getElementById('statsBar').style.display  = 'none';
-  try {
-    const [schedRes, slotsRes] = await Promise.all([
-      apiFetch('/api/schedule'),
-      apiFetch('/api/or-slots').catch(() => null),
-    ]);
-    allPatients = await schedRes.json();
-    if (!Array.isArray(allPatients)) throw new Error('Invalid response');
-    if (slotsRes && slotsRes.ok) {
-      try {
-        const slotsData = await slotsRes.json();
-        if (Array.isArray(slotsData)) {
-          orSlots = slotsData;
-        } else if (slotsData && Array.isArray(slotsData.slots)) {
-          orSlots = slotsData.slots;
-          const badge = document.getElementById('syncBadge');
-          if (badge && slotsData.synced) {
-            const d = new Date(slotsData.synced);
-            badge.textContent = 'GCal ' + d.toLocaleDateString('en', {day:'numeric',month:'short'});
-            badge.style.display = 'inline';
-          }
-        } else {
-          orSlots = [];
-        }
-      } catch(e) { orSlots = []; }
-    }
+  // Arabic week label
+  const fmt = d => `${d.getDate()} ${MON_AR[d.getMonth()]}`;
+  document.getElementById('week-label').textContent = `${fmt(ws)} — ${fmt(we)}`;
 
-    dates = [...new Set(allPatients.map(p => p.dateISO))].sort();
-    if (dates.length === 0) {
-      document.getElementById('schedule').innerHTML = '<div class="no-data">No scheduled patients</div>';
-      document.getElementById('tabs').innerHTML = '';
-      return;
-    }
-    buildTabs();
-    if (!selectedDate || !dates.includes(selectedDate)) selectedDate = dates[0];
-    renderDay(selectedDate);
-  } catch (e) {
-    document.getElementById('schedule').innerHTML =
-      `<div class="no-data">Error loading data<br><small>${e.message}</small></div>`;
-  }
-}
-
-// ── Tabs ──────────────────────────────────────────────────────────
-function buildTabs() {
-  const tabs = document.getElementById('tabs');
-  const todayISO = new Date().toISOString().slice(0, 10);
-  tabs.innerHTML = dates.map(d => {
-    const dt = new Date(d + 'T00:00:00');
-    const label = `${EN_DAYS[dt.getDay()]} ${dt.getDate()} ${EN_MONTHS[dt.getMonth()]}`;
-    const isToday = d === todayISO;
-    const slot = getSlotForDate(d);
-    const slotLabel = slot ? ` ${slot.start}–${slot.end}` : '';
-    return `<button class="tab${d === selectedDate ? ' active' : ''}${isToday ? ' today' : ''}"
-              data-date="${d}"
-              onclick="selectDate('${d}')">${isToday ? '📌 ' : ''}${label}<span class="tab-slot">${slotLabel}</span></button>`;
-  }).join('');
-}
-
-function selectDate(d) {
-  selectedDate = d;
-  buildTabs();
-  renderDay(d);
-}
-
-// ── Badges ────────────────────────────────────────────────────────
-function statusBadge(sc) {
-  const labels = { confirmed:'Confirmed', wl:'WL', pd:'PD', cancelled:'Cancelled', tentative:'Tentative' };
-  return `<span class="badge badge-${sc}">${labels[sc] || sc}</span>`;
-}
-function approvalBadge(p) {
-  if (p.approved)    return '<span class="badge badge-approved">Approved</span>';
-  if (p.notApproved) return '<span class="badge badge-notapproved">Not Approved</span>';
-  return '';
-}
-function approvalToggleBtn(p) {
-  const state = p.approved ? 'approved' : p.notApproved ? 'not-approved' : 'unknown';
-  const icon  = p.approved ? '✅' : p.notApproved ? '❌' : '⬜';
-  return `<button class="approve-toggle ${state}" onclick="event.stopPropagation();cycleApproval(${p.rowNum})" title="Toggle approval">${icon}</button>`;
-}
-
-// ── Render day as calendar grid ───────────────────────────────────
-function renderDay(dateISO) {
-  const patients = allPatients.filter(p => p.dateISO === dateISO);
-  const slot = getSlotForDate(dateISO);
-
-  const maxPat = patients.reduce((mx, p) => {
-    const { h } = parseTime(p.timeStart);
-    return Math.max(mx, h + (p.durationH || 1));
-  }, 17);
-  const MAX_H = Math.max(maxPat, 18);
-  const gridH = (MAX_H - MIN_H) * HOUR_PX + 20;
-
-  let html = `<div class="cal-grid" style="height:${gridH}px">`;
-
-  // Allowed / blocked zone shading
-  if (slot) {
-    const startH = timeToH(slot.start);
-    const endH   = timeToH(slot.end);
-    // blocked before
-    if (startH > MIN_H) {
-      const blockH = (startH - MIN_H) * HOUR_PX;
-      html += `<div class="slot-blocked" style="top:0;height:${blockH}px"></div>`;
-    }
-    // allowed window
-    const allowedTop = (startH - MIN_H) * HOUR_PX;
-    const allowedH   = (endH - startH) * HOUR_PX;
-    html += `<div class="slot-allowed" style="top:${allowedTop}px;height:${allowedH}px"></div>`;
-    // blocked after
-    if (endH < MAX_H) {
-      const afterTop = (endH - MIN_H) * HOUR_PX;
-      const afterH   = (MAX_H - endH) * HOUR_PX + 20;
-      html += `<div class="slot-blocked" style="top:${afterTop}px;height:${afterH}px"></div>`;
-    }
-  }
-
-  // Time grid lines
-  for (let h = MIN_H; h <= MAX_H; h++) {
-    const y = (h - MIN_H) * HOUR_PX;
-    html += `<div class="time-row" style="top:${y}px">
-      <span class="time-label">${String(h).padStart(2,'0')}:00</span>
-      <div class="time-line"></div>
-    </div>`;
-    if (h < MAX_H) {
-      const yh = y + HOUR_PX / 2;
-      html += `<div class="time-row" style="top:${yh}px"><div class="time-line half"></div></div>`;
-    }
-  }
-
-  // Patient cards
-  for (const p of patients) {
-    const { h: ph, m: pm } = parseTime(p.timeStart);
-    const topY   = (ph + pm / 60 - MIN_H) * HOUR_PX;
-    const cardH  = Math.max((p.durationH || 1) * HOUR_PX - 4, 42);
-    const apBadge = approvalToggleBtn(p);
-    const stBadge = statusBadge(p.statusClass);
-    const timeStr = `${String(ph).padStart(2,'0')}:${String(pm).padStart(2,'0')}`;
-
-    html += `<div class="patient-card ${p.statusClass}"
-                  data-rownum="${p.rowNum}"
-                  style="top:${topY}px; height:${cardH}px;"
-                  onclick="openDialog(${p.rowNum})">
-      <div class="slot-row1">
-        <span class="slot-time">${timeStr}</span>
-        <span class="slot-name">${esc(p.fullName)}</span>
-        <div class="slot-badges">${apBadge}${stBadge}</div>
-      </div>`;
-
-    if (cardH >= 52 && p.procedure) {
-      html += `<div class="slot-row2">
-        <span class="slot-proc">${esc(p.procedure)}</span>
-        <span class="slot-dur">⏱ ${p.duration || '1h'}</span>
-      </div>`;
-    }
-    if (cardH >= 72) {
-      const fp = p.fileNo  ? `#${esc(p.fileNo)}` : '';
-      const ph2 = p.phone   ? `📞 ${esc(p.phone)}` : '';
-      if (fp || ph2) {
-        html += `<div class="slot-row3">
-          ${fp  ? `<span class="slot-file">${fp}</span>` : ''}
-          ${ph2 ? `<span class="slot-phone">${ph2}</span>` : ''}
-        </div>`;
-      }
-    }
-    if (p.telegramLink) {
-      html += `<button class="topic-btn" onclick="event.stopPropagation();openTopicLink('${esc(p.telegramLink)}')">🔗</button>`;
-    }
-    html += `</div>`;
-  }
-
-  html += '</div>';
-  document.getElementById('schedule').innerHTML = html;
-
-  // Setup drag for each card
-  patients.forEach(p => {
-    const card = document.querySelector(`.patient-card[data-rownum="${p.rowNum}"]`);
-    if (card) setupDrag(card, p);
-  });
-
-  // Stats
-  const total     = patients.length;
-  const confirmed = patients.filter(p => p.statusClass === 'confirmed').length;
-  const wl        = patients.filter(p => p.statusClass === 'wl').length;
-  const pd        = patients.filter(p => p.statusClass === 'pd').length;
-  const cancelled = patients.filter(p => p.statusClass === 'cancelled').length;
-  const tentative = patients.filter(p => p.statusClass === 'tentative').length;
-
-  const statsBar = document.getElementById('statsBar');
-  statsBar.style.display = 'block';
-  statsBar.innerHTML =
-    `<span>📊 ${total} patient${total !== 1 ? 's' : ''}</span>` +
-    (confirmed ? `<span>✅ ${confirmed}</span>` : '') +
-    (wl        ? `<span>⏳ ${wl} WL</span>` : '') +
-    (pd        ? `<span>⚠️ ${pd} PD</span>` : '') +
-    (tentative ? `<span>🔵 ${tentative} tentative</span>` : '') +
-    (cancelled ? `<span>❌ ${cancelled}</span>` : '');
-
-  document.getElementById('dayFooter').style.display = patients.length > 0 ? 'flex' : 'none';
-}
-
-// ── Drag & Drop ───────────────────────────────────────────────────
-let dragState      = null;
-let longPressTimer = null;
-let ghostEl        = null;
-let dropLine       = null;
-
-function setupDrag(card, patient) {
-  card.addEventListener('touchstart',  e => onTouchStart(e, card, patient), { passive: true });
-  card.addEventListener('touchmove',   onTouchMove,   { passive: false });
-  card.addEventListener('touchend',    onTouchEnd);
-  card.addEventListener('touchcancel', cancelDrag);
-}
-
-function onTouchStart(e, card, patient) {
-  const touch = e.touches[0];
-  const startX = touch.clientX, startY = touch.clientY;
-
-  longPressTimer = setTimeout(() => {
-    tg?.HapticFeedback?.impactOccurred('medium');
-    beginDrag(card, patient, touch);
-  }, 480);
-
-  const onEarlyMove = (ev) => {
-    const t = ev.touches[0];
-    if (Math.abs(t.clientX - startX) > 8 || Math.abs(t.clientY - startY) > 8) {
-      clearTimeout(longPressTimer);
-      card.removeEventListener('touchmove', onEarlyMove);
-    }
-  };
-  card.addEventListener('touchmove', onEarlyMove, { passive: true });
-}
-
-function beginDrag(card, patient, touch) {
-  const rect = card.getBoundingClientRect();
-  dragState = {
-    patient,
-    card,
-    offsetY: touch.clientY - rect.top,
-    offsetX: touch.clientX - rect.left,
-    cardW:   rect.width,
-    cardH:   rect.height,
-  };
-
-  // Ghost
-  ghostEl = document.createElement('div');
-  ghostEl.className = 'drag-ghost patient-card ' + patient.statusClass;
-  ghostEl.style.width  = rect.width  + 'px';
-  ghostEl.style.height = rect.height + 'px';
-  ghostEl.style.left   = rect.left + 'px';
-  ghostEl.style.top    = rect.top  + 'px';
-  ghostEl.innerHTML = card.innerHTML;
-  document.body.appendChild(ghostEl);
-
-  card.classList.add('drag-src');
-
-  // Drop line
-  dropLine = document.createElement('div');
-  dropLine.className = 'drop-indicator';
-  dropLine.style.display = 'none';
-  const grid = document.querySelector('.cal-grid');
-  if (grid) grid.appendChild(dropLine);
-
-  document.addEventListener('touchmove', preventScroll, { passive: false });
-}
-
-function preventScroll(e) { if (dragState) e.preventDefault(); }
-
-function onTouchMove(e) {
-  if (!dragState) return;
-  clearTimeout(longPressTimer);
-  const touch = e.touches[0];
-
-  // Move ghost
-  ghostEl.style.left = (touch.clientX - dragState.offsetX) + 'px';
-  ghostEl.style.top  = (touch.clientY - dragState.offsetY) + 'px';
-
-  // Check if over tabs
-  const tabsRect = document.querySelector('.tabs-wrap').getBoundingClientRect();
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('drag-over'));
-
-  if (touch.clientY <= tabsRect.bottom) {
-    // Over tabs area
-    const tabs = document.querySelectorAll('.tab');
-    const overTab = [...tabs].find(t => {
-      const r = t.getBoundingClientRect();
-      return touch.clientX >= r.left && touch.clientX <= r.right;
-    });
-    if (overTab) overTab.classList.add('drag-over');
-    if (dropLine) dropLine.style.display = 'none';
-  } else {
-    // Over calendar
-    if (dropLine) {
-      const grid = document.querySelector('.cal-grid');
-      if (grid) {
-        const gr = grid.getBoundingClientRect();
-        const relY = touch.clientY - gr.top;
-        const rawH = MIN_H + relY / HOUR_PX;
-        const snap = Math.round(rawH * 2) / 2;
-        const snapH = Math.floor(snap);
-        const snapM = (snap % 1) * 60;
-        const snapY = (snap - MIN_H) * HOUR_PX;
-        const timeStr = `${String(snapH).padStart(2,'0')}:${String(snapM).padStart(2,'0')}`;
-        const isAllowed = isTimeAllowed(timeStr, selectedDate);
-        dropLine.style.display = 'block';
-        dropLine.style.top     = snapY + 'px';
-        dropLine.dataset.time  = timeStr;
-        dropLine.dataset.blocked = isAllowed ? '' : '1';
-        if (isAllowed) { dropLine.classList.remove('blocked'); } else { dropLine.classList.add('blocked'); }
-      }
-    }
-  }
-}
-
-function onTouchEnd(e) {
-  clearTimeout(longPressTimer);
-  if (!dragState) return;
-  const touch = e.changedTouches[0];
-
-  // Cleanup
-  ghostEl?.remove(); ghostEl = null;
-  dropLine?.remove(); dropLine = null;
-  dragState.card.classList.remove('drag-src');
-  document.removeEventListener('touchmove', preventScroll);
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('drag-over'));
-
-  const { patient } = dragState;
-  dragState = null;
-
-  // Was over tabs?
-  const tabsRect = document.querySelector('.tabs-wrap').getBoundingClientRect();
-  if (touch.clientY <= tabsRect.bottom) {
-    const tabs = document.querySelectorAll('.tab');
-    const overTab = [...tabs].find(t => {
-      const r = t.getBoundingClientRect();
-      return touch.clientX >= r.left && touch.clientX <= r.right;
-    });
-    if (overTab) {
-      const newDate = overTab.dataset.date;
-      if (newDate && newDate !== selectedDate) {
-        const dt = new Date(newDate + 'T00:00:00');
-        const label = `${EN_DAYS[dt.getDay()]} ${dt.getDate()} ${EN_MONTHS[dt.getMonth()]}`;
-        const newSlot = getSlotForDate(newDate);
-        const { h: ph, m: pm } = parseTime(patient.timeStart);
-        const curTimeStr = `${String(ph).padStart(2,'0')}:${String(pm).padStart(2,'0')}`;
-        const timeOK = isTimeAllowed(curTimeStr, newDate);
-        const slotInfo = newSlot ? `\nOR window: ${newSlot.start}–${newSlot.end}` : '';
-        const warnLine = (!timeOK && newSlot) ? `\n⚠️ Time ${curTimeStr} is outside OR window` : '';
-        if (confirm(`Move ${patient.fullName}\nto ${label}?${slotInfo}${warnLine}`)) {
-          movePatientDate(patient, newDate);
-        }
-      }
-    }
-    return;
-  }
-
-  // Over calendar — snap time
-  const grid = document.querySelector('.cal-grid');
-  if (grid) {
-    const gr = grid.getBoundingClientRect();
-    const relY = touch.clientY - gr.top;
-    const rawH = MIN_H + relY / HOUR_PX;
-    const snap = Math.round(rawH * 2) / 2;
-    const snapH = Math.max(MIN_H, Math.floor(snap));
-    const snapM = (snap % 1) * 60;
-    const newTime = `${String(snapH).padStart(2,'0')}:${String(snapM).padStart(2,'0')}`;
-    const { h: origH, m: origM } = parseTime(patient.timeStart);
-    const origTime = `${String(origH).padStart(2,'0')}:${String(origM).padStart(2,'0')}`;
-    if (newTime !== origTime) {
-      const slot = getSlotForDate(selectedDate);
-      if (slot && !isTimeAllowed(newTime, selectedDate)) {
-        tg?.HapticFeedback?.notificationOccurred('error');
-        alert(`⛔ Outside OR hours\nAllowed: ${slot.start} – ${slot.end}`);
-        return;
-      }
-      if (confirm(`Reschedule ${patient.fullName}\n${origTime} → ${newTime}?`)) {
-        reschedulePatient(patient, newTime);
-      }
-    }
-  }
-}
-
-function cancelDrag() {
-  clearTimeout(longPressTimer);
-  if (!dragState) return;
-  ghostEl?.remove(); ghostEl = null;
-  dropLine?.remove(); dropLine = null;
-  dragState.card.classList.remove('drag-src');
-  document.removeEventListener('touchmove', preventScroll);
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('drag-over'));
-  dragState = null;
-}
-
-async function reschedulePatient(patient, newTime) {
-  try {
-    const res  = await apiFetch('/api/reschedule', { method: 'POST', body: JSON.stringify({ rowNum: patient.rowNum, newTime }) });
-    const data = await res.json();
-    if (data.ok) { await loadData(); tg?.HapticFeedback?.notificationOccurred('success'); }
-    else alert('Error: ' + (data.error || 'Reschedule failed'));
-  } catch (e) { alert('Connection error: ' + e.message); }
-}
-
-async function movePatientDate(patient, newDate) {
-  try {
-    const res  = await apiFetch('/api/move-date', { method: 'POST', body: JSON.stringify({ rowNum: patient.rowNum, newDate }) });
-    const data = await res.json();
-    if (data.ok) {
-      await loadData();
-      selectDate(newDate);
-      tg?.HapticFeedback?.notificationOccurred('success');
-    } else alert('Error: ' + (data.error || 'Move failed'));
-  } catch (e) { alert('Connection error: ' + e.message); }
-}
-
-// ── Dialog ────────────────────────────────────────────────────────
-function openDialog(rowNum) {
-  const p = allPatients.find(x => x.rowNum === rowNum);
-  if (!p || dragState) return;
-  selectedPatient = p;
-
-  document.getElementById('dialogName').textContent = p.fullName || p.name;
-
-  const meta = [];
-  if (p.fileNo)    meta.push(`File #${p.fileNo}`);
-  if (p.phone)     meta.push(`📞 ${p.phone}`);
-  if (p.procedure) meta.push(p.procedure);
-  if (p.duration)  meta.push(`⏱ ${p.duration}`);
-  document.getElementById('dialogMeta').textContent = meta.join('  ·  ');
-
-  document.getElementById('dialogBadges').innerHTML = approvalBadge(p) + statusBadge(p.statusClass);
-  document.getElementById('dialogTopicWrap').style.display = p.telegramLink ? 'block' : 'none';
-  document.getElementById('dialogOverlay').classList.add('visible');
-}
-
-function closeDialog(e) {
-  if (!e || e.target === document.getElementById('dialogOverlay')) {
-    document.getElementById('dialogOverlay').classList.remove('visible');
-    selectedPatient = null;
-  }
-}
-
-function openTopic() {
-  if (!selectedPatient?.telegramLink) return;
-  openTopicLink(selectedPatient.telegramLink);
-}
-
-function openTopicLink(link) {
-  if (tg?.openTelegramLink) tg.openTelegramLink(link);
-  else window.open(link, '_blank');
-}
-
-async function setStatus(status) {
-  if (!selectedPatient) return;
-  document.getElementById('dialogOverlay').classList.remove('visible');
-  const p = selectedPatient; selectedPatient = null;
-  try {
-    const res  = await apiFetch('/api/update', { method: 'POST', body: JSON.stringify({ rowNum: p.rowNum, status }) });
-    const data = await res.json();
-    if (data.ok) { await loadData(); tg?.HapticFeedback?.notificationOccurred('success'); }
-    else alert('Error: ' + (data.error || 'Update failed'));
-  } catch (e) { alert('Connection error: ' + e.message); }
-}
-
-async function cycleApproval(rowNum) {
-  const p = allPatients.find(x => x.rowNum === rowNum);
-  if (!p) return;
-  const next = (!p.approved && !p.notApproved) ? 'Approved' : p.approved ? 'Not Approved' : '';
-  await setApprovalForRow(rowNum, next);
-}
-
-async function setApproval(approvalText) {
-  if (!selectedPatient) return;
-  document.getElementById('dialogOverlay').classList.remove('visible');
-  const p = selectedPatient; selectedPatient = null;
-  await setApprovalForRow(p.rowNum, approvalText);
-}
-
-async function setApprovalForRow(rowNum, approvalText) {
-  try {
-    const res  = await apiFetch('/api/approve', { method: 'POST', body: JSON.stringify({ rowNum, approval: approvalText }) });
-    const data = await res.json();
-    if (data.ok) { await loadData(); tg?.HapticFeedback?.notificationOccurred('success'); }
-    else alert('Error: ' + (data.error || 'Approval update failed'));
-  } catch (e) { alert('Connection error: ' + e.message); }
-}
-
-async function confirmAll() {
-  const pts = allPatients.filter(p => p.dateISO === selectedDate && p.statusClass !== 'confirmed');
-  if (!pts.length) { alert('All patients already confirmed'); return; }
-  for (const p of pts) await apiFetch('/api/update', { method: 'POST', body: JSON.stringify({ rowNum: p.rowNum, status: 'Confirmed' }) });
-  await loadData();
-  tg?.HapticFeedback?.notificationOccurred('success');
-}
-
-async function cancelDay() {
-  const pts = allPatients.filter(p => p.dateISO === selectedDate && p.statusClass !== 'cancelled');
-  if (!pts.length) { alert('No patients to cancel'); return; }
-  if (!confirm('Cancel all patients for this day?')) return;
-  for (const p of pts) await apiFetch('/api/update', { method: 'POST', body: JSON.stringify({ rowNum: p.rowNum, status: 'Cancelled' }) });
-  await loadData();
-}
-
-function esc(s) {
-  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/'/g,'&#39;');
-}
-
-// ── Search ────────────────────────────────────────────────────────
-let searchQuery = '';
-
-function onSearch(q) {
-  searchQuery = q.trim().toLowerCase();
-  document.getElementById('searchClear').style.display = searchQuery ? 'block' : 'none';
-  if (searchQuery) renderSearch(searchQuery);
-  else renderDay(selectedDate);
-}
-
-function clearSearch() {
-  searchQuery = '';
-  document.getElementById('searchInput').value = '';
-  document.getElementById('searchClear').style.display = 'none';
-  renderDay(selectedDate);
-}
-
-function renderSearch(q) {
-  const matches = allPatients.filter(p => {
-    const name = (p.fullName || p.name || '').toLowerCase();
-    const file = String(p.fileNo || '').toLowerCase();
-    const proc = (p.procedure || '').toLowerCase();
-    return name.includes(q) || file.includes(q) || proc.includes(q);
-  });
-
-  if (!matches.length) {
-    document.getElementById('schedule').innerHTML = `<div class="sr-no-results">No results for "<b>${esc(q)}</b>"</div>`;
-    document.getElementById('dayFooter').style.display = 'none';
-    document.getElementById('statsBar').style.display  = 'none';
-    return;
-  }
-
-  // Group by date
+  // Group patients by date
   const byDate = {};
-  matches.forEach(p => {
+  scheduleData.forEach(p => {
     if (!byDate[p.dateISO]) byDate[p.dateISO] = [];
     byDate[p.dateISO].push(p);
   });
 
-  let html = '';
-  Object.keys(byDate).sort().forEach(dateISO => {
-    const dt = new Date(dateISO + 'T00:00:00');
-    const label = `${EN_DAYS[dt.getDay()]}, ${dt.getDate()} ${EN_MONTHS[dt.getMonth()]}`;
-    html += `<div class="search-result-date">${label}</div>`;
-    byDate[dateISO].forEach(p => {
-      const { h: ph, m: pm } = parseTime(p.timeStart);
-      const timeStr = `${String(ph).padStart(2,'0')}:${String(pm).padStart(2,'0')}`;
-      html += `<div class="search-result-card ${p.statusClass}" onclick="jumpToPatient('${p.dateISO}', ${p.rowNum})">
-        <div class="sr-row1">
-          <span class="sr-name">${esc(p.fullName || p.name)}</span>
-          ${approvalBadge(p)}${statusBadge(p.statusClass)}
+  // Generate 7 days (Sun-Sat)
+  const days = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(ws); d.setDate(ws.getDate() + i);
+    const iso = d.toISOString().slice(0, 10);
+    days.push({ date: d, iso, patients: byDate[iso] || [] });
+  }
+
+  // Summary
+  const totalPats = scheduleData.filter(p => {
+    const d = new Date(p.dateISO);
+    return d >= ws && d <= we;
+  }).length;
+  const totalHours = scheduleData.filter(p => {
+    const d = new Date(p.dateISO); return d >= ws && d <= we;
+  }).reduce((s, p) => s + (p.durationH || 1), 0);
+  const fullDays = days.filter(d => d.patients.reduce((s,p) => s+(p.durationH||1),0) >= MAX_OR_HOURS).length;
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const todayISO = today.toISOString().slice(0,10);
+
+  let html = `<div class="week-summary">
+    <div class="summary-item"><div class="summary-num">${totalPats}</div><div class="summary-label">حالة هذا الأسبوع</div></div>
+    <div class="summary-item"><div class="summary-num">${totalHours}</div><div class="summary-label">ساعة محجوزة</div></div>
+    <div class="summary-item"><div class="summary-num">${MAX_OR_HOURS * 5 - totalHours}</div><div class="summary-label">ساعة متاحة</div></div>
+    <div class="summary-item"><div class="summary-num">${fullDays}</div><div class="summary-label">يوم ممتلئ</div></div>
+  </div>`;
+
+  days.forEach(({ date, iso, patients }) => {
+    const dayName = DAY_AR[date.getDay()];
+    const isToday = iso === todayISO;
+    const isFri   = date.getDay() === 5;
+    const isSat   = date.getDay() === 6;
+    const usedH   = patients.reduce((s, p) => s + (p.durationH || 1), 0);
+    const availH  = Math.max(0, MAX_OR_HOURS - usedH);
+    const pct     = Math.min(1, usedH / MAX_OR_HOURS);
+
+    let badgeClass, badgeText;
+    if (isFri || isSat)      { badgeClass = 'badge-empty'; badgeText = 'عطلة'; }
+    else if (pct >= 1)       { badgeClass = 'badge-full';  badgeText = 'ممتلئ ✓'; }
+    else if (pct >= 0.6)     { badgeClass = 'badge-busy';  badgeText = `${availH}h متاحة`; }
+    else if (patients.length) { badgeClass = 'badge-ok';   badgeText = `${availH}h متاحة`; }
+    else                      { badgeClass = 'badge-empty'; badgeText = 'فارغ'; }
+
+    let dayBg, dayColor;
+    if (isToday)      { dayBg = '#1a237e'; dayColor = 'white'; }
+    else if (isFri || isSat) { dayBg = '#f5f5f5'; dayColor = '#bbb'; }
+    else if (pct >= 1) { dayBg = '#ffebee'; dayColor = '#c62828'; }
+    else if (pct >= 0.6) { dayBg = '#fff3e0'; dayColor = '#e65100'; }
+    else               { dayBg = '#e8f5e9'; dayColor = '#2e7d32'; }
+
+    // Hour blocks
+    let blocks = '';
+    for (let h = 0; h < MAX_OR_HOURS; h++) {
+      blocks += `<div class="hour-block ${h < usedH ? 'used' : 'empty'}" style="${h < usedH ? `background:${isToday?'#5c6bc0':dayColor}` : ''}"></div>`;
+    }
+
+    // Patients list
+    let patsHtml = '';
+    if (patients.length) {
+      let cumH = 7; // start at 7:00 AM
+      patsHtml = patients.map(p => {
+        const h = Math.floor(cumH); const m = (cumH % 1) * 60;
+        const timeStr = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+        cumH += p.durationH || 1;
+        const sc = p.statusClass || 'tentative';
+        const scLabel = sc === 'confirmed' ? 'مؤكد' : sc === 'approved' ? 'موافق' : 'مبدئي';
+        return `<div class="sched-patient">
+          <div class="sched-time">${timeStr}</div>
+          <div class="sched-dur">${p.duration || '1h'}</div>
+          <div class="sched-info">
+            <div class="sched-name">${p.fullName || p.name}</div>
+            <div class="sched-proc">${p.procedure || '—'}</div>
+          </div>
+          <div class="sched-status ${sc}">${scLabel}</div>
+        </div>`;
+      }).join('');
+    } else {
+      patsHtml = `<div class="empty-day">${isFri || isSat ? 'عطلة نهاية الأسبوع' : 'لا توجد عمليات مجدولة'}</div>`;
+    }
+
+    html += `<div class="day-card">
+      ${isToday ? '<div class="today-marker">▶ اليوم</div>' : ''}
+      <div class="day-header" onclick="toggleDayPanel('${iso}')">
+        <div class="day-icon" style="background:${dayBg};color:${dayColor}">
+          <div class="day-num">${date.getDate()}</div>
+          <div class="day-month">${MON_AR[date.getMonth()]}</div>
         </div>
-        <div class="sr-row2">
-          <span>⏰ ${timeStr}</span>
-          ${p.fileNo    ? `<span>#${esc(p.fileNo)}</span>` : ''}
-          ${p.procedure ? `<span>${esc(p.procedure)}</span>` : ''}
-          ${p.phone     ? `<span>📞 ${esc(p.phone)}</span>` : ''}
+        <div class="day-info">
+          <div class="day-name">${dayName}</div>
+          <div class="day-count">${patients.length ? `${patients.length} حالة · ${usedH}h محجوزة` : (isFri || isSat ? 'عطلة' : 'لا حجوزات')}</div>
+          ${!isFri && !isSat ? `<div class="hours-bar-wrap">
+            <div class="hours-blocks">${blocks}</div>
+            <div class="hours-text">${usedH} من ${MAX_OR_HOURS} ساعات</div>
+          </div>` : ''}
         </div>
-      </div>`;
-    });
+        <div class="status-badge ${badgeClass}">${badgeText}</div>
+      </div>
+      <div class="day-patients" id="day_${iso}">${patsHtml}</div>
+    </div>`;
   });
 
-  document.getElementById('schedule').innerHTML = html;
-  document.getElementById('dayFooter').style.display = 'none';
-  document.getElementById('statsBar').innerHTML =
-    `<span>🔍 ${matches.length} result${matches.length !== 1 ? 's' : ''}</span>`;
-  document.getElementById('statsBar').style.display = 'block';
+  document.getElementById('view-schedule').innerHTML = html;
+
+  // Auto-open today
+  const todayPanel = document.getElementById('day_' + todayISO);
+  if (todayPanel) todayPanel.classList.add('open');
 }
 
-function jumpToPatient(dateISO, rowNum) {
-  clearSearch();
-  selectDate(dateISO);
-  // Brief highlight after render
-  setTimeout(() => {
-    const card = document.querySelector(`.patient-card[data-rownum="${rowNum}"]`);
-    if (card) {
-      card.scrollIntoView({ block: 'center', behavior: 'smooth' });
-      card.style.boxShadow = '0 0 0 3px var(--accent)';
-      setTimeout(() => card.style.boxShadow = '', 1500);
+function toggleDayPanel(iso) {
+  const el = document.getElementById('day_' + iso);
+  if (el) el.classList.toggle('open');
+}
+
+// ── Patients View ─────────────────────────────────────────────────────
+let allPatients = [];
+let currentFilter = 'all';
+
+function daysSince(dateStr) {
+  if (!dateStr) return null;
+  try { return Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000); } catch(e) { return null; }
+}
+
+function daysClass(n, status) {
+  if (n === null) return 'ok';
+  if (status === 'PD' && n > 7)  return 'urgent';
+  if (status === 'PD' && n > 3)  return 'warn';
+  if (status === 'WL' && n > 14) return 'urgent';
+  return 'ok';
+}
+
+function buildWaMsg(p) {
+  return encodeURIComponent(`مرحباً،\nبخصوص ملف ${p.name}\nرقم الملف: ${p.fileNo}\nالإجراء: ${p.procedure}`);
+}
+
+function renderProgressRing(done, total, status) {
+  const r = 16, circ = 2 * Math.PI * r, pct = total > 0 ? done / total : 0;
+  const offset = circ * (1 - pct);
+  const color = status === 'PD' ? '#e65100' : status === 'WL' ? '#2e7d32' : '#6a1b9a';
+  return `<svg class="progress-ring" viewBox="0 0 40 40">
+    <circle class="progress-ring-bg" cx="20" cy="20" r="${r}"/>
+    <circle class="progress-ring-fill" cx="20" cy="20" r="${r}" stroke="${color}"
+      stroke-dasharray="${circ.toFixed(1)}" stroke-dashoffset="${offset.toFixed(1)}"/>
+    <text x="20" y="20" text-anchor="middle" dominant-baseline="central"
+      style="fill:#333;font-size:11px;font-weight:700;transform:rotate(90deg);transform-origin:20px 20px">
+      ${done}/${total}</text></svg>`;
+}
+
+function renderPatientCard(p) {
+  const done = countDone(p.fileNo), total = CHECKLIST.length;
+  const ps = getPS(p.fileNo), days = daysSince(p.pdDate), dc = daysClass(days, p.status);
+  const sc = (p.status || 'other').toLowerCase();
+  const daysText = days !== null ? (p.status === 'PD' ? `⏱ ${days} يوم منذ PD` : `📋 WL منذ ${days} يوم`) : '';
+  const waNum = p.phone ? p.phone.replace(/^0/, '966').replace(/\D/g,'') : '';
+
+  const checkItems = CHECKLIST.map(item => `
+    <div class="cl-item ${ps[item.id] ? 'checked' : ''}" data-file="${p.fileNo}" data-item="${item.id}">
+      <div class="cl-check">${ps[item.id] ? '✓' : ''}</div>
+      <div class="cl-label">${item.label}</div>
+    </div>`).join('');
+
+  return `<div class="patient-card" id="card_${p.fileNo}">
+    <div class="card-header" onclick="toggleCL('${p.fileNo}')">
+      <div class="status-circle ${sc}"><span class="big">${p.status || '?'}</span></div>
+      <div class="card-info">
+        <div class="card-name">${p.name}</div>
+        <div class="card-proc">${p.procedure || '—'} · ${p.fileNo}</div>
+        ${daysText ? `<div class="card-days ${dc}">${daysText}</div>` : ''}
+      </div>
+      <div class="progress-pill">
+        ${renderProgressRing(done, total, p.status)}
+        <span class="progress-label">Checklist</span>
+      </div>
+    </div>
+    <div class="checklist-panel" id="panel_${p.fileNo}">
+      <div class="cl-section-title">قائمة المتطلبات</div>
+      ${checkItems}
+      <div class="actions-row">
+        ${waNum ? `<a class="action-btn wa" href="https://wa.me/${waNum}?text=${buildWaMsg(p)}" target="_blank">💬 واتساب</a>` : ''}
+        ${p.phone ? `<a class="action-btn call" href="tel:${p.phone}">📞 اتصال</a>` : ''}
+        ${p.telegramLink ? `<a class="action-btn tg" href="${p.telegramLink}" target="_blank">✈️ التوبك</a>` : ''}
+        <button class="action-btn send" onclick="sendReminder('${p.fileNo}','${waNum}','${encodeURIComponent(p.name || '')}')">📨 تذكير</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderPatientsView() {
+  const filtered = currentFilter === 'all' ? allPatients : allPatients.filter(p => p.status === currentFilter);
+  filtered.sort((a, b) => (daysSince(b.pdDate) || 0) - (daysSince(a.pdDate) || 0));
+
+  const list = document.getElementById('patients-list');
+  if (filtered.length === 0) {
+    list.innerHTML = '<div class="empty-state">لا توجد ملفات بهذه الحالة</div>';
+    return;
+  }
+  list.innerHTML = filtered.map(renderPatientCard).join('');
+
+  list.querySelectorAll('.cl-item').forEach(el => {
+    el.addEventListener('click', e => {
+      e.stopPropagation();
+      toggleCheck(el.dataset.file, el.dataset.item);
+      updateCardProgress(el.dataset.file);
+    });
+  });
+}
+
+function toggleCL(fileNo) {
+  document.getElementById('panel_' + fileNo)?.classList.toggle('open');
+}
+
+function updateCardProgress(fileNo) {
+  const card = document.getElementById('card_' + fileNo);
+  const panel = document.getElementById('panel_' + fileNo);
+  if (!card || !panel) return;
+  const ps = getPS(fileNo), done = countDone(fileNo);
+  panel.querySelectorAll('.cl-item').forEach(el => {
+    const checked = !!ps[el.dataset.item];
+    el.classList.toggle('checked', checked);
+    el.querySelector('.cl-check').textContent = checked ? '✓' : '';
+  });
+  const ring = card.querySelector('.progress-ring-fill');
+  const total = CHECKLIST.length, r = 16, circ = 2 * Math.PI * r;
+  const offset = circ * (1 - done / total);
+  if (ring) ring.setAttribute('stroke-dashoffset', offset.toFixed(1));
+  const txt = card.querySelector('.progress-ring text');
+  if (txt) txt.textContent = `${done}/${total}`;
+  if (done === total) showToast('✅ الملف مكتمل!');
+}
+
+function sendReminder(fileNo, waNum, nameEnc) {
+  if (!waNum) { showToast('لا يوجد رقم واتساب'); return; }
+  const name = decodeURIComponent(nameEnc);
+  const msg = encodeURIComponent(
+    `مرحباً ${name}،\n\nنُذكّركم بأن ملف عمليتكم قيد المتابعة في مستشفى الحبيب.\n\nللاستفسار تواصلوا مع مكتب العمليات:\n📞 0138711206 | 0138711836\n📞 0138711111 تحويلة 1206 أو 1836\n📱 0557756821`
+  );
+  window.open(`https://wa.me/${waNum}?text=${msg}`, '_blank');
+}
+
+// ── Filter buttons ─────────────────────────────────────────────────────
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentFilter = btn.dataset.filter;
+    renderPatientsView();
+  });
+});
+
+// ── Contacts View ─────────────────────────────────────────────────────
+function renderContacts() {
+  let html = '<div class="contacts-list">';
+  CONTACTS.forEach(group => {
+    html += `<div class="contact-card">
+      <div class="contact-group-title">${group.group}</div>`;
+    group.items.forEach(item => {
+      html += `<a href="${item.href}" class="contact-item">
+        <div class="contact-icon">${item.icon}</div>
+        <div><div class="contact-label">${item.label}</div><div class="contact-desc">${item.desc}</div></div>
+        ${item.wa ? `<div class="contact-wa-badge">WA</div>` : ''}
+      </a>`;
+    });
+    html += `</div>`;
+    if (group.items.some(i => i.wa)) {
+      html += `<div class="contact-card">`;
+      group.items.filter(i => i.wa).forEach(item => {
+        html += `<a href="https://wa.me/${item.waNum}" target="_blank" class="contact-item">
+          <div class="contact-icon">💬</div>
+          <div><div class="contact-label">واتساب — ${item.label}</div><div class="contact-desc">${item.desc}</div></div>
+        </a>`;
+      });
+      html += `</div>`;
     }
-  }, 150);
+  });
+  html += '</div>';
+  document.getElementById('view-contacts').innerHTML = html;
 }
 
-// Apply Telegram theme
-if (tg?.themeParams) {
-  const tp = tg.themeParams;
-  if (tp.bg_color)           document.documentElement.style.setProperty('--bg',      tp.bg_color);
-  if (tp.secondary_bg_color) document.documentElement.style.setProperty('--surface', tp.secondary_bg_color);
-  if (tp.text_color)         document.documentElement.style.setProperty('--text',    tp.text_color);
-  if (tp.hint_color)         document.documentElement.style.setProperty('--subtext', tp.hint_color);
-  if (tp.link_color)         document.documentElement.style.setProperty('--accent',  tp.link_color);
+// ── Toast ──────────────────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
 }
 
-loadData();
+// ── Load data ──────────────────────────────────────────────────────────
+async function load() {
+  try {
+    // Schedule
+    const r1 = await fetch((API_BASE || '') + '/api/schedule?' + Date.now());
+    if (r1.ok) {
+      const d1 = await r1.json();
+      scheduleData = d1.schedule || [];
+    }
+
+    // Active patients
+    try {
+      const r2 = await fetch((API_BASE || '') + '/api/coord-patients?' + Date.now());
+      if (r2.ok) {
+        const d2 = await r2.json();
+        allPatients = d2.patients || [];
+      }
+    } catch(e) {}
+
+    const total = scheduleData.length;
+    document.getElementById('header-sub').textContent =
+      `${total} عملية مجدولة · ${allPatients.length} ملف نشط`;
+
+    renderScheduleView();
+    renderPatientsView();
+    renderContacts();
+
+  } catch(e) {
+    document.getElementById('header-sub').textContent = 'خطأ في الاتصال';
+    document.getElementById('view-schedule').innerHTML =
+      '<div class="empty-state">⚠️ تعذّر تحميل الجدول<br><small>تأكد أن خادم Mini App يعمل</small></div>';
+    renderContacts();
+  }
+}
+
+// Telegram WebApp init
+if (window.Telegram?.WebApp) { Telegram.WebApp.ready(); Telegram.WebApp.expand(); }
+// Hide week nav for non-schedule tabs on start
+document.getElementById('week-nav-bar').style.display = '';
+
+load();
 </script>
 </body>
 </html>
