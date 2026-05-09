@@ -1,0 +1,5 @@
+# PRIVACY: patient data must never be committed to this public repo
+# data.json contains patient names, file numbers, insurance status
+data.json
+or_patients.json
+*.patient.json
