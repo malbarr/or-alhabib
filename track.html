@@ -202,16 +202,29 @@
   }
   .coord-card .coord-title { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
   .coord-card .coord-sub   { font-size: 12px; opacity: 0.85; margin-bottom: 16px; }
-  .coord-buttons { display: flex; flex-direction: column; gap: 10px; }
+  .coord-section { margin-bottom: 12px; }
+  .coord-section-label {
+    font-size: 11px; opacity: 0.75; font-weight: 700;
+    letter-spacing: 0.5px; margin-bottom: 8px;
+  }
+  .coord-row {
+    display: flex; align-items: center; justify-content: space-between;
+    background: rgba(255,255,255,0.12); border-radius: 10px;
+    padding: 10px 14px; margin-bottom: 6px;
+  }
+  .coord-num { font-size: 15px; font-weight: 700; letter-spacing: 0.5px; direction: ltr; }
+  .coord-num-sub { font-size: 11px; opacity: 0.7; margin-top: 2px; }
+  .coord-actions { display: flex; gap: 8px; }
   .coord-btn {
-    display: flex; align-items: center; justify-content: center; gap: 8px;
-    background: white; border: none; border-radius: 30px;
-    padding: 13px 16px; font-size: 15px; font-weight: 700;
-    cursor: pointer; text-decoration: none; transition: transform 0.1s;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    background: white; border: none; border-radius: 20px;
+    padding: 8px 14px; font-size: 13px; font-weight: 700;
+    cursor: pointer; text-decoration: none; transition: transform 0.1s; white-space: nowrap;
   }
   .coord-btn:active { transform: scale(0.97); }
   .coord-btn.call { color: #1e8449; }
   .coord-btn.wa   { color: #128c7e; }
+  .coord-btn.call-sm { padding: 8px 12px; }
 
   .back-btn {
     display: block;
@@ -271,7 +284,7 @@
 
     <div class="pin-hint">
       📱 أدخل آخر 4 أرقام من رقم جوالك المسجّل في المستشفى.<br>
-      إذا واجهت مشكلة — تواصل مع المنسق على <strong>0556689020</strong>
+      إذا واجهت مشكلة — تواصل مع المنسق على <strong>0557756821</strong> أو <strong>0556689020</strong>
     </div>
   </div>
 
@@ -345,15 +358,65 @@
 
   <!-- Coordinator Buttons -->
   <div class="coord-card">
-    <div class="coord-title">تواصل مع المنسق</div>
+    <div class="coord-title">تواصل مع مكتب العمليات</div>
     <div class="coord-sub" id="coord-sub">للاستفسار أو تأكيد الموعد — نحن هنا لمساعدتك</div>
-    <div class="coord-buttons">
-      <a class="coord-btn call" href="tel:0556689020">
-        <span>📞</span><span>اتصال مباشر</span>
-      </a>
-      <a class="coord-btn wa" id="wa-btn" href="#" target="_blank">
-        <span>💬</span><span>واتساب مع رسالة جاهزة</span>
-      </a>
+
+    <div class="coord-section">
+      <div class="coord-section-label">📱 أرقام الجوال</div>
+
+      <div class="coord-row">
+        <div>
+          <div class="coord-num">0557756821</div>
+        </div>
+        <div class="coord-actions">
+          <a class="coord-btn call call-sm" href="tel:0557756821">📞</a>
+          <a class="coord-btn wa" id="wa-btn-1" href="#" target="_blank">💬 واتساب</a>
+        </div>
+      </div>
+
+      <div class="coord-row">
+        <div>
+          <div class="coord-num">0556689020</div>
+        </div>
+        <div class="coord-actions">
+          <a class="coord-btn call call-sm" href="tel:0556689020">📞</a>
+          <a class="coord-btn wa" id="wa-btn-2" href="#" target="_blank">💬 واتساب</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="coord-section">
+      <div class="coord-section-label">☎️ أرقام المكتب</div>
+
+      <div class="coord-row">
+        <div>
+          <div class="coord-num">013-871-1206</div>
+        </div>
+        <a class="coord-btn call" href="tel:0138711206">📞 اتصال</a>
+      </div>
+
+      <div class="coord-row">
+        <div>
+          <div class="coord-num">013-871-1836</div>
+        </div>
+        <a class="coord-btn call" href="tel:0138711836">📞 اتصال</a>
+      </div>
+
+      <div class="coord-row">
+        <div>
+          <div class="coord-num">013-871-1111</div>
+          <div class="coord-num-sub">تحويلة 1206</div>
+        </div>
+        <a class="coord-btn call" href="tel:0138711111">📞 اتصال</a>
+      </div>
+
+      <div class="coord-row">
+        <div>
+          <div class="coord-num">013-871-1111</div>
+          <div class="coord-num-sub">تحويلة 1836</div>
+        </div>
+        <a class="coord-btn call" href="tel:0138711111">📞 اتصال</a>
+      </div>
     </div>
   </div>
 
@@ -538,7 +601,8 @@ function updateWaLink(p, fileNo) {
   const msg = encodeURIComponent(
     `السلام عليكم، أنا ${p.name}\nرقم ملفي: ${fileNo}\nأود حجز موعد عملية: ${p.procedure}\nالتاريخ المفضّل: ${dateStr}`
   );
-  document.getElementById('wa-btn').href = `https://wa.me/966556689020?text=${msg}`;
+  document.getElementById('wa-btn-1').href = `https://wa.me/966557756821?text=${msg}`;
+  document.getElementById('wa-btn-2').href = `https://wa.me/966556689020?text=${msg}`;
   if (CHOSEN) {
     document.getElementById('coord-sub').textContent =
       `اخترت ${CHOSEN.weekday} — أكّد مع المنسق الآن`;
